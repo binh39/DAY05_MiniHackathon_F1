@@ -7,12 +7,10 @@ import {
   Download,
   Film,
   ListChecks,
-  MessageSquareText,
   Pause,
   Play,
   Plus,
   Search,
-  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,14 +19,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import {
   artifactBlobUrl,
-  getFeedback,
   getResult,
-  saveFeedback,
-  type FeedbackInput,
   type ResultDetail,
 } from "../api";
 import { useLibrary } from "../contexts";
@@ -43,18 +37,6 @@ function formatTimestamp(seconds: number): string {
   const rounded = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(rounded / 60);
   return `${minutes}:${String(rounded % 60).padStart(2, "0")}`;
-}
-
-function emptyFeedback(): FeedbackInput {
-  return {
-    overall_rating: 5,
-    content_accuracy: "ACCURATE",
-    clarity_rating: 5,
-    duration_fit: "JUST_RIGHT",
-    would_use_again: true,
-    issue_details: "",
-    comment: "",
-  };
 }
 
 const moduleLabels: Record<PipelineModuleId, string> = {
@@ -135,10 +117,6 @@ export function VideosPage() {
     page: number;
     imageUrl: string;
   } | null>(null);
-  const [feedback, setFeedback] = useState<FeedbackInput>(emptyFeedback);
-  const [feedbackSaving, setFeedbackSaving] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [hasSavedFeedback, setHasSavedFeedback] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [toast, setToast] = useState(
@@ -164,20 +142,13 @@ export function VideosPage() {
     setResult(null);
     setResultError("");
     setSourcePage(null);
-    setFeedback(emptyFeedback());
-    setFeedbackMessage("");
-    setHasSavedFeedback(false);
     if (!playing?.jobId || playing.status !== "ready") return;
     setResultLoading(true);
-    void Promise.all([getResult(playing.jobId), getFeedback(playing.jobId)])
-      .then(([detail, savedFeedback]) => {
+    void getResult(playing.jobId)
+      .then((detail) => {
         if (stopped) return;
         setResult(detail);
         setActiveChapterId(detail.chapters[0]?.chapter_id ?? "");
-        if (savedFeedback) {
-          setFeedback(savedFeedback);
-          setHasSavedFeedback(true);
-        }
       })
       .catch((error: unknown) => {
         if (!stopped) {
@@ -244,25 +215,6 @@ export function VideosPage() {
       setResultError(
         error instanceof Error ? error.message : "Không thể tải trang nguồn.",
       );
-    }
-  }
-
-  async function submitFeedback(event: FormEvent) {
-    event.preventDefault();
-    if (!playing?.jobId) return;
-    setFeedbackSaving(true);
-    setFeedbackMessage("");
-    try {
-      const saved = await saveFeedback(playing.jobId, feedback);
-      setFeedback(saved);
-      setHasSavedFeedback(true);
-      setFeedbackMessage("Phản hồi đã được lưu.");
-    } catch (error) {
-      setFeedbackMessage(
-        error instanceof Error ? error.message : "Không thể lưu phản hồi.",
-      );
-    } finally {
-      setFeedbackSaving(false);
     }
   }
 
@@ -463,9 +415,6 @@ export function VideosPage() {
                 <div className="video-actions">
                   <span>{video.createdAt}</span>
                   <div>
-                    {video.hasFeedback && (
-                      <span className="feedback-saved-badge">Đã phản hồi</span>
-                    )}
                     {video.videoUrl && (
                       <a href={video.videoUrl} title="Tải xuống"><Download size={17} /></a>
                     )}
@@ -530,35 +479,6 @@ export function VideosPage() {
                   </div>
                 ) : result ? (
                   <>
-                    <div className="coverage-strip">
-                      <span>
-                        <strong>{Math.round(result.coverage.rate * 100)}%</strong>
-                        coverage
-                      </span>
-                      <span>
-                        <strong>{result.coverage.covered_pages}/{result.coverage.total_pages}</strong>
-                        trang được dạy
-                      </span>
-                      <span>
-                        <strong>{result.coverage.total_sources}</strong>
-                        nguồn
-                      </span>
-                      <span>
-                        <strong>{result.chapters.length}</strong>
-                        chapter
-                      </span>
-                    </div>
-                    {(result.coverage.warnings.length > 0 ||
-                      result.coverage.unreadable_pages.length > 0) && (
-                      <div className="coverage-alert">
-                        <AlertTriangle size={15} />
-                        <span>
-                          {result.coverage.unreadable_pages.length > 0 &&
-                            `Trang khó đọc: ${result.coverage.unreadable_pages.join(", ")}. `}
-                          {result.coverage.warnings.join(" · ")}
-                        </span>
-                      </div>
-                    )}
                     <div className="result-panel-grid">
                       <aside className="chapter-navigation">
                         <div className="result-panel-title">
@@ -655,7 +575,7 @@ export function VideosPage() {
                 ) : null}
               </div>
             )}
-            {playing.jobId && result && (
+            {/* Feedback panel removed from the streamlined video viewer.
               <form className="video-feedback-panel" onSubmit={submitFeedback}>
                 <div className="feedback-heading">
                   <span><MessageSquareText size={18} /></span>
@@ -819,14 +739,9 @@ export function VideosPage() {
                   </button>
                 </div>
               </form>
-            )}
+            */}
             <div className="player-meta">
               <div><h3>{playing.title}</h3><p>Tạo từ {playing.documentName}</p></div>
-              {playing.subtitleUrl && (
-                <a className="secondary-button" href={playing.subtitleUrl}>
-                  <Download size={17} /> Tải SRT
-                </a>
-              )}
               {playing.videoUrl ? (
                 <a className="primary-button" href={playing.videoUrl}>
                   <Download size={17} /> Tải video

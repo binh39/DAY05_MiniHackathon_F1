@@ -381,10 +381,11 @@ a { color: inherit; }
 .failed-meta { border-top:1px solid #f3d9dd; margin-top:11px; padding-top:10px; color:#c54b5b; font-size:8px; }
 .review-meta { border-top:1px solid #e4defc; margin-top:11px; padding-top:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; color:#7059c9; font-size:8px; }
 .review-meta button { border:0; border-radius:8px; padding:7px 9px; background:#eeeaff; color:#6349c5; font-size:8px; font-weight:800; white-space:nowrap; }
-.video-player-modal { position:relative; width:min(1080px,95vw); max-height:94vh; overflow:auto; background:#fff; border-radius:22px; box-shadow:0 30px 90px rgba(10,13,30,.32); }
+.video-modal-backdrop { overflow:auto; }
+.video-player-modal { position:relative; width:min(1080px,calc(100vw - 32px)); max-height:calc(100vh - 32px); margin:auto; overflow:auto; background:#fff; border-radius:22px; box-shadow:0 30px 90px rgba(10,13,30,.32); }
 .modal-close { position:absolute; z-index:3; top:13px; right:13px; width:36px; height:36px; border:0; border-radius:11px; display:grid; place-items:center; color:#fff; background:rgba(0,0,0,.3); }
 .fake-player { height:min(56vw,495px); position:relative; color:#fff; display:grid; place-items:center; }
-.real-player { display:block; width:100%; max-height:min(56vw,495px); background:#080b13; }
+.real-player { display:block; width:100%; height:auto; max-height:calc(100vh - 160px); object-fit:contain; object-position:center; background:#080b13; }
 .fake-player-copy { position:absolute; left:8%; right:20%; top:35%; display:flex; flex-direction:column; gap:12px; }
 .fake-player-copy small { color:#76e1cf; font-weight:700; }
 .fake-player-copy strong { font-size:clamp(24px,4vw,45px); }
