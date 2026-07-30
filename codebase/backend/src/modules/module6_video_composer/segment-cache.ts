@@ -9,7 +9,7 @@ import type {
 import type { TimelineScene } from "./timeline.js";
 import { probeMedia } from "./video-validator.js";
 
-const CACHE_VERSION = "module6-v1-remotion-ffmpeg-7.1";
+const CACHE_VERSION = "module6-v2-duration-aware-ffmpeg-7.1";
 const metadataSchema = z.object({
   duration_seconds: z.number().positive(),
   width: z.number().int().positive(),
@@ -24,6 +24,7 @@ export function createSegmentCacheKey(
   width: number,
   height: number,
   fps: number,
+  audioTempo: number,
 ): string {
   return createHash("sha256")
     .update(
@@ -35,6 +36,7 @@ export function createSegmentCacheKey(
         width,
         height,
         fps,
+        audio_tempo: Number(audioTempo.toFixed(6)),
         codec: "h264+aac",
         crf: 20,
       }),

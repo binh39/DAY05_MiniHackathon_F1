@@ -18,8 +18,8 @@
     "max_pdf_pages": 80
   },
   "voice": {
-    "provider": "edge",
-    "voice_id": "vi-VN-HoaiMyNeural",
+    "provider": "google",
+    "voice_id": "vi-VN-Neural2-A",
     "speaking_rate": 1
   },
   "render": {

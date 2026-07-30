@@ -21,6 +21,7 @@ import {
   buildTimeline,
   CHAPTER_GAP_SECONDS,
 } from "../src/modules/module6_video_composer/timeline.js";
+import { fitNarrationDuration } from "../src/modules/module6_video_composer/duration-fit.js";
 import { composeVideo } from "../src/modules/module6_video_composer/video-composer.js";
 import { probeMedia } from "../src/modules/module6_video_composer/video-validator.js";
 import { createSilentWav } from "../src/modules/module5b_voice_generator/wav.js";
@@ -216,6 +217,43 @@ test("subtitle is readable, monotonic and does not expose source IDs", () => {
   assert.match(srt, /-->/);
   assert.doesNotMatch(srt, /p1_e01/);
   assert.ok(cues.every((cue) => cue.lines.length <= 2));
+});
+
+test("fits measured narration toward target without a long silent tail", () => {
+  const natural = fitNarrationDuration({
+    rawDurationSeconds: 377.4,
+    fixedGapSeconds: 2.4,
+    minSeconds: 300,
+    maxSeconds: 480,
+    targetSeconds: 410,
+  });
+  assert.equal(natural.mode, "NATURAL");
+  assert.ok(Math.abs(natural.audioTempo - 375 / 407.6) < 0.000_001);
+  assert.equal(natural.desiredDurationSeconds, 410);
+
+  const oldCachedAudio = fitNarrationDuration({
+    rawDurationSeconds: 223.4,
+    fixedGapSeconds: 2.4,
+    minSeconds: 300,
+    maxSeconds: 480,
+    targetSeconds: 410,
+  });
+  assert.equal(oldCachedAudio.mode, "RECOVERY");
+  assert.ok(Math.abs(oldCachedAudio.audioTempo - 0.7) < 0.000_001);
+  assert.ok(oldCachedAudio.desiredDurationSeconds >= 300);
+  assert.ok(oldCachedAudio.desiredDurationSeconds <= 480);
+
+  assert.throws(
+    () =>
+      fitNarrationDuration({
+        rawDurationSeconds: 10,
+        fixedGapSeconds: 0,
+        minSeconds: 300,
+        maxSeconds: 480,
+        targetSeconds: 410,
+      }),
+    /DURATION_OUT_OF_RANGE/,
+  );
 });
 
 test("composes and probes a real H.264/AAC MP4, then reuses segment cache", async (t) => {

@@ -36,12 +36,15 @@ export interface User {
 export interface DocumentItem {
   id: string;
   jobId: string;
+  summaryJobId?: string;
   name: string;
   size: string;
   sizeBytes: number;
   pages?: number;
   uploadedAt: string;
-  status: "ready" | "analyzing";
+  status: "ready" | "analyzing" | "video";
+  progress?: number;
+  stage?: string;
   color: string;
 }
 

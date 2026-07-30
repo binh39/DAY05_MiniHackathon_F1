@@ -118,6 +118,7 @@ export async function generateVoiceManifest(
       scene.narration,
       kind,
       script.pronunciation_glossary,
+      targetLanguage,
     );
     const request: SpeechSynthesisRequest = {
       ssml,

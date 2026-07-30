@@ -8,6 +8,12 @@ import {
   validateTemplateProps,
 } from "./template-registry.js";
 
+const DURATION_EPSILON_SECONDS = 0.001;
+
+function durationsDiffer(left: number, right: number): boolean {
+  return Math.abs(left - right) > DURATION_EPSILON_SECONDS;
+}
+
 function duplicates(values: string[]): string[] {
   const counts = new Map<string, number>();
   for (const value of values) {
@@ -70,8 +76,10 @@ export function validateStoryboard(
       errors.push(`${scene.scene_id} thay đổi narration text.`);
     }
     if (
-      scene.estimated_duration_seconds !==
-      narration.estimated_duration_seconds
+      durationsDiffer(
+        scene.estimated_duration_seconds,
+        narration.estimated_duration_seconds,
+      )
     ) {
       errors.push(`${scene.scene_id} sai narration duration.`);
     }
@@ -128,7 +136,7 @@ export function validateStoryboard(
     (total, scene) => total + scene.estimated_duration_seconds,
     0,
   );
-  if (duration !== script.estimated_duration_seconds) {
+  if (durationsDiffer(duration, script.estimated_duration_seconds)) {
     errors.push(
       `Storyboard duration ${duration}s không khớp script ${script.estimated_duration_seconds}s.`,
     );
@@ -137,7 +145,8 @@ export function validateStoryboard(
     storyboard.validation.missing_narration_ids.length > 0 ||
     storyboard.validation.duplicate_narration_ids.length > 0 ||
     storyboard.validation.invalid_source_ids.length > 0 ||
-    storyboard.validation.duration_delta_seconds !== 0
+    storyboard.validation.duration_delta_seconds >
+      DURATION_EPSILON_SECONDS
   ) {
     errors.push("Storyboard validation manifest còn lỗi.");
   }

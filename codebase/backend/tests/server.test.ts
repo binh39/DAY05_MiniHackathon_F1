@@ -13,6 +13,7 @@ import path from "node:path";
 import test from "node:test";
 import { createServer } from "../src/server/app.js";
 import type { FirebaseServices } from "../src/server/firebase-services.js";
+import { isDurationFailure } from "../src/server/duration-retry.js";
 import {
   durationConfig,
   moduleProgress,
@@ -56,6 +57,22 @@ function multipartPayload(options: {
     contentType: `multipart/form-data; boundary=${boundary}`,
   };
 }
+
+test("recognizes duration failures from both script and video modules", () => {
+  assert.equal(
+    isDurationFailure(
+      "Tổng narration ước tính 92.0s vượt khả năng hiệu chỉnh an toàn của duration plan 75s.",
+    ),
+    true,
+  );
+  assert.equal(
+    isDurationFailure(
+      "DURATION_OUT_OF_RANGE: audio thực tế 129.53s, yêu cầu 180-300s.",
+    ),
+    true,
+  );
+  assert.equal(isDurationFailure("Semantic grounding failed."), false);
+});
 
 async function temporaryDirectory(t: test.TestContext): Promise<string> {
   const directory = await mkdtemp(
@@ -303,6 +320,86 @@ test("saved document serves PDF and summary, then starts video from module 2", a
     video.json().modules.module2_lecture_planner.status,
     "PENDING",
   );
+});
+
+test("direct video upload reuses an identical ready document instead of duplicating it", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const jobsDirectory = path.join(backendDirectory, "jobs");
+  const uploadsDirectory = path.join(backendDirectory, "uploads");
+  const runDirectory = path.join(directory, "runs", "reusable-document");
+  await mkdir(jobsDirectory, { recursive: true });
+  await mkdir(uploadsDirectory, { recursive: true });
+  await mkdir(runDirectory, { recursive: true });
+  const pdf = Buffer.from("%PDF-1.4\n%%EOF");
+  const inputFile = path.join(uploadsDirectory, "ready-document.pdf");
+  await writeFile(inputFile, pdf);
+  const modules = initialModuleStates();
+  modules.module1_document_intelligence = { status: "COMPLETED" };
+  const now = new Date().toISOString();
+  const job: JobRecord = {
+    kind: "DOCUMENT",
+    id: "ready-document",
+    owner_uid: "local-development",
+    run_id: "reusable-document",
+    status: "COMPLETED",
+    stage: "DOCUMENT_READY",
+    progress: 100,
+    created_at: now,
+    updated_at: now,
+    input_file: inputFile,
+    original_filename: "document.pdf",
+    input_size_bytes: pdf.length,
+    fields: {
+      aspect_ratio: "16:9",
+      duration_option: "5-8",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
+    },
+    attempt: 1,
+    run_directory: runDirectory,
+    document_pages: 1,
+    warnings: [],
+    modules,
+  };
+  await writeFile(
+    path.join(jobsDirectory, `${job.id}.json`),
+    JSON.stringify(job),
+  );
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+  });
+  t.after(() => server.close());
+
+  const body = multipartPayload({
+    filename: "document.pdf",
+    mimetype: "application/pdf",
+    file: pdf,
+    fields: {
+      title: "Video tái sử dụng tài liệu",
+      aspect_ratio: "16:9",
+      duration_option: "3-5",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "academic",
+    },
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/api/jobs",
+    headers: { "content-type": body.contentType },
+    payload: body.payload,
+  });
+  assert.equal(response.statusCode, 202);
+  assert.equal(response.json().id, job.id);
+  assert.equal(response.json().kind, "VIDEO");
+  assert.equal(response.json().retry_from, "module2_lecture_planner");
+
+  const list = await server.inject({ method: "GET", url: "/api/jobs" });
+  assert.equal(list.json().jobs.length, 1);
+  assert.deepEqual(await readdir(uploadsDirectory), ["ready-document.pdf"]);
 });
 
 test("upload API rejects a file without PDF magic bytes", async (t) => {

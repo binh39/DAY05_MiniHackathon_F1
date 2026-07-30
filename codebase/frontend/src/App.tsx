@@ -8,6 +8,7 @@ import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { OutlineReviewPage } from "./pages/OutlineReviewPage";
 import { VideosPage } from "./pages/VideosPage";
 import { useRouter } from "./router";
+import { ThemeProvider } from "./theme";
 
 function Redirect({ to }: { to: string }) {
   const { navigate } = useRouter();
@@ -48,10 +49,12 @@ function RoutedContent() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <LibraryProvider>
-        <RoutedContent />
-      </LibraryProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <LibraryProvider>
+          <RoutedContent />
+        </LibraryProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

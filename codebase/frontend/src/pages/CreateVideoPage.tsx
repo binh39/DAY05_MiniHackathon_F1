@@ -72,6 +72,27 @@ const visualStyles: Array<{ id: VisualStyle; label: string }> = [
   { id: "dynamic", label: "Năng động" },
 ];
 
+function quotaPercentage(used: number, limit: number) {
+  if (!limit) return 0;
+  return Math.max(0, Math.min(100, Math.round((used / limit) * 100)));
+}
+
+const analysisStageLabels: Record<string, string> = {
+  QUEUED: "Đang xếp hàng phân tích",
+  STARTING: "Đang khởi động AI",
+  VALIDATING_PDF: "Đang kiểm tra tệp PDF",
+  PREPARING_ANALYSIS: "Đang chuẩn bị nội dung",
+  READING_DOCUMENT_CONTENT: "AI đang đọc nội dung tài liệu",
+  STRUCTURING_DOCUMENT: "Đang tổ chức kiến thức",
+  RENDERING_PAGES: "Đang xử lý các trang tài liệu",
+  FINALIZING_DOCUMENT: "Đang hoàn tất phân tích",
+  ANALYZING_DOCUMENT: "AI đang phân tích tài liệu",
+};
+
+function analysisStageLabel(stage?: string) {
+  return stage ? (analysisStageLabels[stage] ?? "AI đang phân tích tài liệu") : "Đang chuẩn bị phân tích";
+}
+
 export function CreateVideoPage() {
   const {
     createVideo,
@@ -103,6 +124,17 @@ export function CreateVideoPage() {
   const libraryDocument = documents.find(
     (document) => document.jobId === libraryDocumentId,
   );
+  const selectedDocument =
+    libraryDocument ??
+    documents.find((document) => document.jobId === savedDocumentId);
+  const documentReady = selectedDocument?.status === "ready";
+  const analysisProgress = documentReady
+    ? 100
+    : Math.max(0, Math.min(99, selectedDocument?.progress ?? 0));
+  const analysisLabel = documentReady
+    ? "Phân tích hoàn tất"
+    : analysisStageLabel(selectedDocument?.stage);
+  const documentIsAnalyzing = Boolean(selectedDocument) && !documentReady;
 
   useEffect(() => {
     void refreshQuota().catch(() => undefined);
@@ -159,14 +191,12 @@ export function CreateVideoPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const selectedDocument = libraryDocument ??
-      documents.find((document) => document.jobId === savedDocumentId);
     if ((!file && !selectedDocument) || !savedDocumentId) {
       setError("Hãy tải lên một tài liệu PDF để tiếp tục.");
       return;
     }
-    if (selectedDocument?.status !== "ready") {
-      setError("Tài liệu vẫn đang được AI phân tích. Vui lòng chờ hoàn tất.");
+    if (!documentReady) {
+      setError(`${analysisLabel} · ${analysisProgress}%. Vui lòng chờ đến 100% để tạo video.`);
       return;
     }
     setSubmitting(true);
@@ -262,15 +292,16 @@ export function CreateVideoPage() {
                     {" · "}
                     {savingDocument
                       ? `Đang lưu ${uploadProgress}%`
-                      : (libraryDocument ??
-                          documents.find((item) => item.jobId === savedDocumentId))
-                            ?.status === "ready"
-                        ? "Đã lưu · Sẵn sàng"
-                        : "Đã lưu · Đang phân tích"}
+                      : documentReady
+                        ? "Đã lưu · Phân tích hoàn tất"
+                        : `${analysisLabel} · ${analysisProgress}%`}
                   </small>
                 </div>
-                <span className="ready-check">
-                  <Check size={17} />
+                <span
+                  className={`ready-check${documentReady ? "" : " analyzing"}`}
+                  aria-label={documentReady ? "Tài liệu đã sẵn sàng" : "Tài liệu đang được AI phân tích"}
+                >
+                  {documentReady ? <Check size={17} /> : <Sparkles size={17} />}
                 </span>
                 <button
                   type="button"
@@ -284,6 +315,35 @@ export function CreateVideoPage() {
                 >
                   <X size={19} />
                 </button>
+              </div>
+            )}
+            {!savingDocument && selectedDocument && (
+              <div
+                className={`document-analysis-progress${documentReady ? " is-ready" : ""}`}
+                role="status"
+                aria-live="polite"
+              >
+                <div className="document-analysis-progress-heading">
+                  <span>
+                    <Sparkles size={15} /> {analysisLabel}
+                  </span>
+                  <strong>{analysisProgress}%</strong>
+                </div>
+                <div
+                  className="document-analysis-track"
+                  role="progressbar"
+                  aria-label="Tiến độ phân tích tài liệu"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={analysisProgress}
+                >
+                  <span style={{ width: `${analysisProgress}%` }} />
+                </div>
+                <small>
+                  {documentReady
+                    ? "Tài liệu đã sẵn sàng. Bạn có thể tạo outline và video."
+                    : "Nút tạo outline sẽ tự mở khi tiến độ đạt 100%."}
+                </small>
               </div>
             )}
             <input
@@ -415,18 +475,49 @@ export function CreateVideoPage() {
             <h3>Tóm tắt thiết lập</h3>
             {quota && (
               <div className="quota-summary" aria-label="Hạn mức tài khoản">
-                <strong>Hạn mức còn lại</strong>
-                <span>
-                  {Math.floor(quota.remaining.monthly_video_seconds / 60)} phút video
-                  {" · "}{quota.remaining.active_jobs} lượt xử lý
-                </span>
-                <span>
-                  {(quota.remaining.storage_bytes / 1024 / 1024).toFixed(0)} MB
-                  {" · "}{quota.remaining.stored_jobs} job lưu trữ
-                </span>
-                {quota.retention_days > 0 && (
-                  <small>Dữ liệu hoàn tất được giữ {quota.retention_days} ngày.</small>
-                )}
+                <div className="quota-heading">
+                  <strong>Tóm tắt quota</strong>
+                  <Info size={16} aria-hidden="true" />
+                </div>
+                <div className="quota-meter">
+                  <div>
+                    <span>Thời lượng video</span>
+                    <b>
+                      {Math.floor(quota.usage.monthly_video_seconds / 60)} / {Math.floor(quota.limits.monthly_video_seconds / 60)} phút
+                    </b>
+                  </div>
+                  <i>
+                    <span
+                      style={{
+                        width: `${quotaPercentage(
+                          quota.usage.monthly_video_seconds,
+                          quota.limits.monthly_video_seconds,
+                        )}%`,
+                      }}
+                    />
+                  </i>
+                </div>
+                <div className="quota-meter quota-meter-red">
+                  <div>
+                    <span>Lượt xử lý đồng thời</span>
+                    <b>{quota.usage.active_jobs} / {quota.limits.max_active_jobs}</b>
+                  </div>
+                  <i>
+                    <span
+                      style={{
+                        width: `${quotaPercentage(
+                          quota.usage.active_jobs,
+                          quota.limits.max_active_jobs,
+                        )}%`,
+                      }}
+                    />
+                  </i>
+                </div>
+                <small className="quota-plan">
+                  {quota.retention_days > 0
+                    ? `Dữ liệu được lưu ${quota.retention_days} ngày`
+                    : "Không gian học thuật VLearn"}
+                </small>
               </div>
             )}
             <div className="summary-list">
@@ -464,11 +555,20 @@ export function CreateVideoPage() {
             </div>
             <button
               className="primary-button create-submit"
-              disabled={submitting || savingDocument}
+              disabled={submitting || savingDocument || documentIsAnalyzing}
+              title={
+                documentIsAnalyzing
+                  ? `Tài liệu đang được phân tích: ${analysisProgress}%`
+                  : undefined
+              }
             >
               {submitting ? (
                 <>
                   <span className="spinner" /> Đang tải PDF {uploadProgress}%
+                </>
+              ) : documentIsAnalyzing ? (
+                <>
+                  <span className="spinner" /> Đang phân tích tài liệu {analysisProgress}%
                 </>
               ) : (
                 <>Phân tích và tạo outline <ArrowRight size={18} /></>

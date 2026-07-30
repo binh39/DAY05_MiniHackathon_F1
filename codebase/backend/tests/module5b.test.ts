@@ -146,16 +146,43 @@ async function temporaryDirectory(t: test.TestContext): Promise<string> {
   return directory;
 }
 
-test("SSML strips source IDs, escapes XML, applies glossary and pause", () => {
+test("SSML strips source IDs, escapes XML, marks English glossary terms and pause", () => {
   const result = buildSceneSsml(
     "API <tốt> p1_e01",
     "LEARNING_CHECK",
     script.pronunciation_glossary,
   );
-  assert.match(result.ssml, /<sub alias="ây pi ai">API<\/sub>/);
+  assert.match(result.ssml, /<lang xml:lang="en-US">API<\/lang>/);
   assert.match(result.ssml, /&lt;tốt&gt;/);
   assert.match(result.ssml, /<break time="700ms"\/>/);
   assert.doesNotMatch(result.ssml, /p1_e01/);
+});
+
+test("SSML marks English phrases inside Vietnamese narration", () => {
+  const result = buildSceneSsml(
+    "Việt Nam dùng mô hình machine learning, prompt và API.",
+    "GROUNDED_CLAIM",
+    script.pronunciation_glossary,
+    "vi-VN",
+  );
+  assert.match(
+    result.ssml,
+    /<lang xml:lang="en-US">machine learning<\/lang>/,
+  );
+  assert.match(result.ssml, /<lang xml:lang="en-US">prompt<\/lang>/);
+  assert.match(result.ssml, /<lang xml:lang="en-US">API<\/lang>/);
+  assert.doesNotMatch(result.ssml, /xml:lang="en-US">Nam<\/lang>/);
+});
+
+test("SSML marks Vietnamese phrases and names inside English narration", () => {
+  const result = buildSceneSsml(
+    "This lesson explains mô hình học máy in Việt Nam.",
+    "GROUNDED_CLAIM",
+    [],
+    "en-US",
+  );
+  assert.match(result.ssml, /<lang xml:lang="vi-VN">mô hình học máy<\/lang>/);
+  assert.match(result.ssml, /<lang xml:lang="vi-VN">Việt Nam<\/lang>/);
 });
 
 test("WAV parser reports real duration and rejects invalid input", () => {

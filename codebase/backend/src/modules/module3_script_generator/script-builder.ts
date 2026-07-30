@@ -7,16 +7,20 @@ import type {
   SemanticReview,
 } from "./script-types.js";
 
-const WORDS_PER_MINUTE = 125;
+const DEFAULT_WORDS_PER_MINUTE = 125;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/u).filter(Boolean).length;
 }
 
-function durationSeconds(text: string): number {
+function durationSeconds(text: string, wordsPerMinute: number): number {
+  // Keep the speech estimate continuous. Rounding every short narration up to
+  // three seconds inflated a chapter by one or two seconds per scene and could
+  // reject an otherwise correctly-sized script (for example 113s vs a 97s
+  // plan). The final timeline is based on measured WAV durations in module 6.
   return Math.max(
-    3,
-    Math.ceil((countWords(text) / WORDS_PER_MINUTE) * 60),
+    0.1,
+    Number(((countWords(text) / wordsPerMinute) * 60).toFixed(3)),
   );
 }
 
@@ -30,6 +34,7 @@ export function buildScriptArtifact(
   lecturePlan: LecturePlanArtifact,
   decisions: Map<string, ChapterScriptDecision>,
   semanticReview?: SemanticReview,
+  wordsPerMinute = DEFAULT_WORDS_PER_MINUTE,
 ): ScriptArtifact {
   const chapters = lecturePlan.chapters.map((plannedChapter) => {
     const decision = decisions.get(plannedChapter.chapter_id);
@@ -44,7 +49,10 @@ export function buildScriptArtifact(
       objective_indices: unique(narration.objective_indices).sort(
         (left, right) => left - right,
       ),
-      estimated_duration_seconds: durationSeconds(narration.text),
+      estimated_duration_seconds: durationSeconds(
+        narration.text,
+        wordsPerMinute,
+      ),
     }));
     const objectiveCoverage = plannedChapter.learning_objectives.map(
       (objective, objectiveIndex) => ({

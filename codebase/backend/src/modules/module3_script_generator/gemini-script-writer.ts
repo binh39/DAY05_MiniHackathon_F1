@@ -1,4 +1,9 @@
 import type { PipelineConfig } from "../../core/config.js";
+import {
+  narrationWordBudget,
+  preTtsDurationToleranceSeconds,
+  spokenWordsPerMinute,
+} from "../../core/speech-duration.js";
 import type {
   DocumentArtifact,
   LecturePlanArtifact,
@@ -136,18 +141,13 @@ function chapterPrompt(
   const chapterIndex = lecturePlan.chapters.findIndex(
     (candidate) => candidate.chapter_id === chapter.chapter_id,
   );
-  const targetWords = chapter.items.reduce(
-    (total, item) => total + item.estimated_narration_words,
-    0,
+  const targetWords = narrationWordBudget(
+    chapter.duration_seconds,
+    config.language,
+    config.voice.speaking_rate,
   );
-  const maximumChapterWords = Math.max(
-    1,
-    Math.floor((chapter.duration_seconds / 60) * 110),
-  );
-  const minimumChapterWords = Math.max(
-    1,
-    Math.floor(Math.min(targetWords, maximumChapterWords) * 0.82),
-  );
+  const minimumChapterWords = Math.max(1, Math.floor(targetWords * 0.9));
+  const maximumChapterWords = Math.ceil(targetWords * 1.1);
   const maximumNarrations = Math.max(
     2,
     Math.floor(chapter.duration_seconds / 12),
@@ -244,6 +244,7 @@ function validateChapterDecision(
   decision: ChapterScriptDecision,
   chapter: Chapter,
   document: DocumentArtifact,
+  config: PipelineConfig,
 ): void {
   const errors: string[] = [];
   const sourceIds = new Set(chapter.source_ids);
@@ -256,40 +257,36 @@ function validateChapterDecision(
       total + narration.text.trim().split(/\s+/u).filter(Boolean).length,
     0,
   );
-  const targetWords = chapter.items.reduce(
-    (total, item) => total + item.estimated_narration_words,
-    0,
+  const targetWords = narrationWordBudget(
+    chapter.duration_seconds,
+    config.language,
+    config.voice.speaking_rate,
   );
-  const maximumChapterWords = Math.max(
-    1,
-    Math.floor((chapter.duration_seconds / 60) * 110),
-  );
-  const minimumChapterWords = Math.max(
-    1,
-    Math.floor(Math.min(targetWords, maximumChapterWords) * 0.82),
-  );
+  const minimumChapterWords = Math.max(1, Math.floor(targetWords * 0.9));
   if (totalNarrationWords < minimumChapterWords) {
     errors.push(
       `Tổng narration chỉ có ${totalNarrationWords} từ, thấp hơn tối thiểu ${minimumChapterWords} từ của duration budget; hãy giải thích đầy đủ hơn mà không thêm fact ngoài nguồn.`,
     );
   }
-  const estimatedDurationSeconds = decision.narrations.reduce(
-    (total, narration) => {
-      const words = narration.text.trim().split(/\s+/u).filter(Boolean).length;
-      return total + Math.max(3, Math.ceil((words / 125) * 60));
-    },
-    0,
-  );
-  const durationToleranceSeconds = Math.max(
-    2,
-    Math.ceil(chapter.duration_seconds * 0.05),
+  // Estimate the whole chapter once. Applying a minimum and Math.ceil() to
+  // every scene created cumulative rounding drift and the false 113s/97s
+  // validation failure. Scene timing is measured from real TTS WAV files later.
+  const estimatedDurationSeconds =
+    (totalNarrationWords /
+      spokenWordsPerMinute(
+        config.language,
+        config.voice.speaking_rate,
+      )) *
+    60;
+  const durationToleranceSeconds = preTtsDurationToleranceSeconds(
+    chapter.duration_seconds,
   );
   if (
     estimatedDurationSeconds >
     chapter.duration_seconds + durationToleranceSeconds
   ) {
     errors.push(
-      `Tổng narration ${estimatedDurationSeconds}s vượt duration plan ${chapter.duration_seconds}s; hãy rút gọn nhưng vẫn giữ đủ source/objective.`,
+      `Tổng narration ước tính ${estimatedDurationSeconds.toFixed(1)}s vượt khả năng hiệu chỉnh an toàn của duration plan ${chapter.duration_seconds}s; hãy rút gọn nhưng vẫn giữ đủ source/objective.`,
     );
   }
   const maximumNarrations = Math.max(
@@ -445,13 +442,16 @@ async function generateChapter(
         chapterScriptDecisionSchema.parse(JSON.parse(response.text)),
         chapter.learning_objectives.length,
       );
-      validateChapterDecision(parsed, chapter, document);
+      // Retain an invalid-but-parseable response for the next repair prompt.
+      // Without it, Gemini only received a generic duration error and had no
+      // concrete narration to shorten, which could repeat the same failure.
+      currentDecision = parsed;
+      validateChapterDecision(parsed, chapter, document, config);
       return parsed;
     } catch (error) {
       lastError = error;
       currentCorrection =
         error instanceof Error ? error.message : String(error);
-      currentDecision = undefined;
       if (attempt < 3) {
         process.stdout.write(
           `  Retry ${chapter.chapter_id}: ${currentCorrection.slice(0, 500)}\n`,
@@ -557,6 +557,10 @@ export async function generateScriptWithGemini(
   config: PipelineConfig,
 ): Promise<ScriptArtifact> {
   const environment = getVertexEnvironment();
+  const wordsPerMinute = spokenWordsPerMinute(
+    config.language,
+    config.voice.speaking_rate,
+  );
   const startedAt = performance.now();
   process.stdout.write(
     `  Vertex model=${environment.scriptModel}, chapters=${lecturePlan.chapters.length}\n`,
@@ -581,6 +585,8 @@ export async function generateScriptWithGemini(
       config.language,
       lecturePlan,
       decisions,
+      undefined,
+      wordsPerMinute,
     );
     validateScript(draft, document, lecturePlan, false);
     process.stdout.write(`  Semantic review=${reviewAttempt}/2\n`);
@@ -592,6 +598,7 @@ export async function generateScriptWithGemini(
         lecturePlan,
         decisions,
         review,
+        wordsPerMinute,
       );
       validateScript(finalScript, document, lecturePlan);
       process.stdout.write(
@@ -606,6 +613,7 @@ export async function generateScriptWithGemini(
         lecturePlan,
         decisions,
         review,
+        wordsPerMinute,
       );
       validateScript(failed, document, lecturePlan);
     }
