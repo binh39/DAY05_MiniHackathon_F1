@@ -1,0 +1,39 @@
+{
+  "name": "ai-lecture-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "inspect": "tsx src/cli.ts inspect",
+    "smoke:vertex": "tsx src/scripts/smoke-vertex.ts",
+    "smoke:visual": "tsx src/scripts/smoke-visual.ts",
+    "smoke:voice": "tsx src/scripts/smoke-voice.ts",
+    "fixture:pdf": "tsx src/scripts/create-sample-pdf.ts",
+    "run": "tsx src/cli.ts run",
+    "test": "npm run build && node --test dist/tests/contracts.test.js dist/tests/module1.test.js dist/tests/module2.test.js dist/tests/module3.test.js dist/tests/module4.test.js dist/tests/module5a.test.js dist/tests/module5b.test.js dist/tests/module6.test.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.14.0",
+    "@napi-rs/canvas": "^1.0.3",
+    "@remotion/bundler": "4.0.501",
+    "@remotion/renderer": "4.0.501",
+    "dotenv": "^17.4.2",
+    "google-auth-library": "10.5.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.501",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

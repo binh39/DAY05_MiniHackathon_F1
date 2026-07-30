@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.cache/
+.env
+runs/*
+!runs/.gitkeep
+inputs/*
+!inputs/.gitkeep
+outputs/*
+!outputs/.gitkeep

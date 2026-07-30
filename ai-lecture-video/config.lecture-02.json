@@ -1,0 +1,23 @@
+{
+  "input_pdf": "inputs/Lecture-02-Process.pdf",
+  "output_directory": "outputs",
+  "coverage_mode": "FULL",
+  "audience": "beginner",
+  "language": "vi",
+  "detail_level": "standard",
+  "max_chapter_minutes": 8,
+  "limits": {
+    "max_pdf_megabytes": 50,
+    "max_pdf_pages": 80
+  },
+  "voice": {
+    "provider": "google",
+    "voice_id": "vi-VN-Neural2-A",
+    "speaking_rate": 1
+  },
+  "render": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  }
+}

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/contexts.tsx","./src/data.ts","./src/main.tsx","./src/router.tsx","./src/types.ts","./src/components/applayout.tsx","./src/components/logo.tsx","./src/pages/authpages.tsx","./src/pages/createvideopage.tsx","./src/pages/documentspage.tsx","./src/pages/videospage.tsx"],"version":"5.9.3"}
