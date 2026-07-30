@@ -1,5 +1,11 @@
 # AI Lecture Video
 
+## Artifact CP4
+
+Các file chấm CP4 được đặt ở **thư mục gốc repo** theo cấu trúc của hackathon,
+không đặt lẫn với source code của app. Mở nhanh qua
+[`CP4.md`](CP4.md): spec, mining evidence, golden set và kết quả đo đầu.
+
 Khung pipeline chuyển một PDF/slide thành video bài giảng có chapter, lời giảng,
 visual, voice, subtitle và báo cáo coverage.
 

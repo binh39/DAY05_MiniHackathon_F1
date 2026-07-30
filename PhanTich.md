@@ -102,7 +102,7 @@ Một câu lát cắt đề xuất:
 
 **Học viên đang trong buổi học muốn làm rõ ngay đoạn vừa đọc, đã chọn đúng đoạn/trang, nhưng tutor không lấy được đúng ngữ cảnh hoặc trả về trang khác; học viên mất mạch nghe giảng, mất niềm tin và phải hỏi lại.**
 
-### Vì sao đây là pain mạnh nhất
+### Vì sao đây là pain mạnh nhất 
 
 - Tập user lớn: 369 người trong một tuần log.
 - Hành vi cốt lõi: 99,3% lượt có selected context.
@@ -136,7 +136,7 @@ Niềm vui không đến từ câu trả lời dài hơn, mà từ cảm giác: 
 
 ### MVP trong hackathon
 
-- Input: selected text, page, câu hỏi.
+- Input: Đoạn văn bản được chọn, page, câu hỏi.
 - Output: `answer`, `evidence`, `confidence`, `next_action`.
 - Ba nhánh demo: đủ căn cứ; mơ hồ; retrieval fail.
 - Không cần sửa toàn bộ RAG production. Có thể prototype bằng transcript/slide context nhỏ và một lớp đánh giá khớp ngữ cảnh.
