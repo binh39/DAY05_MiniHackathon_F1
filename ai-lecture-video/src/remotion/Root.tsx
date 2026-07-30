@@ -33,6 +33,7 @@ const defaultProps: SceneRenderProps = {
   resolvedImageSrc: null,
   width: 1920,
   height: 1080,
+  visualStyle: "modern_minimal",
 };
 
 export function RemotionRoot() {

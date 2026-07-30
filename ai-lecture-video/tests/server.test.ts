@@ -4,6 +4,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -12,7 +13,21 @@ import path from "node:path";
 import test from "node:test";
 import { createServer } from "../src/server/app.js";
 import type { FirebaseServices } from "../src/server/firebase-services.js";
-import type { JobRecord } from "../src/server/types.js";
+import {
+  durationConfig,
+  moduleProgress,
+  moduleStatesForRetry,
+  resolveModuleTimeout,
+} from "../src/server/job-runner.js";
+import {
+  initialModuleStates,
+  type JobRecord,
+} from "../src/server/types.js";
+import {
+  assertCanCreateJob,
+  QuotaExceededError,
+  quotaSnapshot,
+} from "../src/server/quota-service.js";
 
 function multipartPayload(options: {
   filename: string;
@@ -77,6 +92,101 @@ test("health endpoint is available and starts with an empty queue", async (t) =>
   });
 });
 
+test("module retry keeps completed artifacts and resets the failed branch", () => {
+  const states = initialModuleStates();
+  states.module1_document_intelligence = { status: "COMPLETED" };
+  states.module2_lecture_planner = { status: "COMPLETED" };
+  states.module3_script_generator = { status: "COMPLETED" };
+  states.module4_storyboard_generator = { status: "COMPLETED" };
+  states.module5a_visual_generator = { status: "FAILED", error: "timeout" };
+  states.module5b_voice_generator = { status: "COMPLETED" };
+  const retry = moduleStatesForRetry(
+    states,
+    "module5a_visual_generator",
+  );
+  assert.equal(retry.module4_storyboard_generator.status, "COMPLETED");
+  assert.equal(retry.module5a_visual_generator.status, "PENDING");
+  assert.equal(retry.module5b_voice_generator.status, "COMPLETED");
+  assert.equal(retry.module6_video_composer.status, "PENDING");
+  assert.equal(moduleProgress(retry), 70);
+  assert.equal(
+    resolveModuleTimeout("module5a_visual_generator", undefined, {
+      PIPELINE_MODULE5A_TIMEOUT_MS: "1234",
+    }),
+    1234,
+  );
+  assert.notEqual(
+    resolveModuleTimeout("module5a_visual_generator"),
+    resolveModuleTimeout("module2_lecture_planner"),
+  );
+});
+
+test("retry API resumes the same run from the failed module", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const jobsDirectory = path.join(backendDirectory, "jobs");
+  const runDirectory = path.join(directory, "runs", "resume-run");
+  await mkdir(jobsDirectory, { recursive: true });
+  await mkdir(runDirectory, { recursive: true });
+  const modules = initialModuleStates();
+  modules.module1_document_intelligence = { status: "COMPLETED" };
+  modules.module2_lecture_planner = { status: "COMPLETED" };
+  modules.module3_script_generator = { status: "FAILED", error: "provider" };
+  const now = new Date().toISOString();
+  const job: JobRecord = {
+    id: "resume-job",
+    owner_uid: "local-development",
+    run_id: "resume-run",
+    status: "FAILED",
+    stage: "MODULE_FAILED",
+    progress: 30,
+    created_at: now,
+    updated_at: now,
+    input_file: path.join(directory, "input.pdf"),
+    original_filename: "input.pdf",
+    input_size_bytes: 100,
+    fields: {
+      aspect_ratio: "16:9",
+      duration_option: "5-8",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
+    },
+    attempt: 1,
+    run_directory: runDirectory,
+    approved_at: now,
+    warnings: [],
+    modules,
+    failed_module: "module3_script_generator",
+    error: "provider",
+  };
+  await writeFile(
+    path.join(jobsDirectory, `${job.id}.json`),
+    JSON.stringify(job),
+  );
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+  });
+  t.after(() => server.close());
+
+  const response = await server.inject({
+    method: "POST",
+    url: `/api/jobs/${job.id}/retry`,
+  });
+  assert.equal(response.statusCode, 202);
+  assert.equal(response.json().stage, "QUEUED_FOR_MODULE_RETRY");
+  assert.equal(response.json().attempt, 2);
+  assert.equal(response.json().modules.module2_lecture_planner.status, "COMPLETED");
+  assert.equal(response.json().modules.module3_script_generator.status, "PENDING");
+  const stored = JSON.parse(
+    await readFile(path.join(jobsDirectory, `${job.id}.json`), "utf8"),
+  );
+  assert.equal(stored.run_id, "resume-run");
+  assert.equal(stored.resume_from, "module3_script_generator");
+  assert.ok(stored.approved_at);
+});
+
 test("upload API rejects a file without PDF magic bytes", async (t) => {
   const directory = await temporaryDirectory(t);
   const server = await createServer(directory, {
@@ -118,6 +228,7 @@ test("creates and persists a queued PDF job without exposing local paths", async
       duration_option: "1-3",
       language: "vi",
       voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
     },
   });
   const response = await server.inject({
@@ -131,6 +242,9 @@ test("creates and persists a queued PDF job without exposing local paths", async
   assert.equal(created.status, "QUEUED");
   assert.equal(created.fields.aspect_ratio, "9:16");
   assert.equal(created.fields.duration_option, "1-3");
+  assert.equal(created.fields.language, "vi");
+  assert.equal(created.fields.voice_id, "vi-VN-Neural2-A");
+  assert.equal(created.fields.visual_style, "modern_minimal");
   assert.equal("input_file" in created, false);
   assert.match(created.status_url, /^\/api\/jobs\//);
 
@@ -138,6 +252,45 @@ test("creates and persists a queued PDF job without exposing local paths", async
   assert.equal(list.statusCode, 200);
   assert.equal(list.json().jobs.length, 1);
   assert.equal(list.json().jobs[0].id, created.id);
+
+  const invalidVoice = multipartPayload({
+    filename: "english.pdf",
+    mimetype: "application/pdf",
+    file: Buffer.from(
+      "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF",
+    ),
+    fields: {
+      language: "en",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "academic",
+    },
+  });
+  const rejectedVoice = await server.inject({
+    method: "POST",
+    url: "/api/jobs",
+    headers: { "content-type": invalidVoice.contentType },
+    payload: invalidVoice.payload,
+  });
+  assert.equal(rejectedVoice.statusCode, 400);
+  assert.match(rejectedVoice.json().message, /không tương thích/);
+});
+
+test("duration options map to strict pipeline ranges", () => {
+  assert.deepEqual(durationConfig("0-1").duration, {
+    option: "0-1",
+    min_seconds: 0,
+    max_seconds: 60,
+    target_seconds: 50,
+  });
+  assert.deepEqual(durationConfig("1-3").duration, {
+    option: "1-3",
+    min_seconds: 60,
+    max_seconds: 180,
+    target_seconds: 145,
+  });
+  assert.equal(durationConfig("3-5").duration.max_seconds, 300);
+  assert.equal(durationConfig("5-8").duration.max_seconds, 480);
+  assert.equal(durationConfig("8-10").duration.max_seconds, 600);
 });
 
 test("requires Firebase auth and isolates jobs by owner", async (t) => {
@@ -353,6 +506,7 @@ test("loads, edits and approves an outline before continuing the pipeline", asyn
       duration_option: "5-8",
       language: "vi",
       voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
     },
     attempt: 1,
     run_directory: runDirectory,
@@ -559,6 +713,7 @@ test("returns chapter timestamps, coverage and protected source pages for a comp
       duration_option: "0-1",
       language: "vi",
       voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
     },
     attempt: 1,
     run_directory: runDirectory,
@@ -671,4 +826,245 @@ test("returns chapter timestamps, coverage and protected source pages for a comp
     headers: { authorization: "Bearer bob-token" },
   });
   assert.equal(otherOwnerFeedback.statusCode, 404);
+});
+
+test("quota is isolated per owner and reserves requested video duration", () => {
+  const now = new Date("2026-07-30T10:00:00.000Z");
+  const job: JobRecord = {
+    id: "quota-job",
+    owner_uid: "alice",
+    run_id: "quota-job",
+    status: "QUEUED",
+    stage: "QUEUED",
+    progress: 0,
+    created_at: now.toISOString(),
+    updated_at: now.toISOString(),
+    input_file: "input.pdf",
+    original_filename: "input.pdf",
+    input_size_bytes: 1024,
+    fields: {
+      aspect_ratio: "16:9",
+      duration_option: "5-8",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
+    },
+    quota_reserved_seconds: 480,
+    attempt: 1,
+    warnings: [],
+  };
+  const limits = {
+    max_active_jobs: 1,
+    max_stored_jobs: 3,
+    max_storage_bytes: 10_000,
+    monthly_video_seconds: 600,
+  };
+  const alice = quotaSnapshot([job], "alice", limits, now);
+  const bob = quotaSnapshot([job], "bob", limits, now);
+  assert.equal(alice.usage.monthly_video_seconds, 480);
+  assert.equal(alice.remaining.active_jobs, 0);
+  assert.equal(bob.usage.monthly_video_seconds, 0);
+  assert.throws(
+    () => assertCanCreateJob(alice, 100, job.fields),
+    (error) =>
+      error instanceof QuotaExceededError &&
+      error.code === "ACTIVE_JOB_LIMIT",
+  );
+});
+
+test("create API returns 429 and cleans rejected upload at user quota", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+    quotaLimits: {
+      max_active_jobs: 1,
+      max_stored_jobs: 10,
+      max_storage_bytes: 10_000,
+      monthly_video_seconds: 600,
+    },
+  });
+  t.after(() => server.close());
+  const pdf = Buffer.from(
+    "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF",
+  );
+  const first = multipartPayload({
+    filename: "first.pdf",
+    mimetype: "application/pdf",
+    file: pdf,
+    fields: { duration_option: "0-1" },
+  });
+  const accepted = await server.inject({
+    method: "POST",
+    url: "/api/jobs",
+    headers: { "content-type": first.contentType },
+    payload: first.payload,
+  });
+  assert.equal(accepted.statusCode, 202);
+
+  const second = multipartPayload({
+    filename: "second.pdf",
+    mimetype: "application/pdf",
+    file: pdf,
+    fields: { duration_option: "0-1" },
+  });
+  const rejected = await server.inject({
+    method: "POST",
+    url: "/api/jobs",
+    headers: { "content-type": second.contentType },
+    payload: second.payload,
+  });
+  assert.equal(rejected.statusCode, 429);
+  assert.equal(rejected.json().error, "ACTIVE_JOB_LIMIT");
+  assert.equal(
+    (await readdir(path.join(backendDirectory, "uploads"))).length,
+    1,
+  );
+  const quota = await server.inject({ method: "GET", url: "/api/quota" });
+  assert.equal(quota.statusCode, 200);
+  assert.equal(quota.json().remaining.active_jobs, 0);
+});
+
+test("delete API removes owned local and cloud job data", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const jobsDirectory = path.join(backendDirectory, "jobs");
+  const uploadsDirectory = path.join(backendDirectory, "uploads");
+  const runDirectory = path.join(directory, "runs", "delete-job");
+  await Promise.all([
+    mkdir(jobsDirectory, { recursive: true }),
+    mkdir(uploadsDirectory, { recursive: true }),
+    mkdir(runDirectory, { recursive: true }),
+  ]);
+  const inputPath = path.join(uploadsDirectory, "delete-job.pdf");
+  await writeFile(inputPath, "%PDF-test", "utf8");
+  await writeFile(path.join(runDirectory, "lecture.mp4"), "video", "utf8");
+  const now = new Date().toISOString();
+  const job: JobRecord = {
+    id: "delete-job",
+    owner_uid: "alice",
+    run_id: "delete-job",
+    status: "COMPLETED",
+    stage: "COMPLETED",
+    progress: 100,
+    created_at: now,
+    updated_at: now,
+    input_file: inputPath,
+    original_filename: "delete-job.pdf",
+    input_size_bytes: 9,
+    fields: {
+      aspect_ratio: "16:9",
+      duration_option: "0-1",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
+    },
+    attempt: 1,
+    run_directory: runDirectory,
+    warnings: [],
+  };
+  await writeFile(
+    path.join(jobsDirectory, `${job.id}.json`),
+    JSON.stringify(job),
+  );
+  let cloudDeleted = "";
+  const firebase: FirebaseServices = {
+    async verifyIdToken(token) {
+      return { uid: token === "alice-token" ? "alice" : "bob" };
+    },
+    async persistJob() {},
+    async uploadInput() {
+      return "gs://test/input.pdf";
+    },
+    async uploadArtifacts() {
+      return {};
+    },
+    async deleteJob(candidate) {
+      cloudDeleted = candidate.id;
+    },
+  };
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+    authRequired: true,
+    firebaseServices: firebase,
+  });
+  t.after(() => server.close());
+
+  const otherOwner = await server.inject({
+    method: "DELETE",
+    url: `/api/jobs/${job.id}`,
+    headers: { authorization: "Bearer bob-token" },
+  });
+  assert.equal(otherOwner.statusCode, 404);
+  const response = await server.inject({
+    method: "DELETE",
+    url: `/api/jobs/${job.id}`,
+    headers: { authorization: "Bearer alice-token" },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().deleted, true);
+  assert.equal(cloudDeleted, job.id);
+  await assert.rejects(access(inputPath));
+  await assert.rejects(access(runDirectory));
+  await assert.rejects(access(path.join(jobsDirectory, `${job.id}.json`)));
+});
+
+test("retention removes old terminal jobs but keeps active jobs", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const jobsDirectory = path.join(backendDirectory, "jobs");
+  const uploadsDirectory = path.join(backendDirectory, "uploads");
+  await Promise.all([
+    mkdir(jobsDirectory, { recursive: true }),
+    mkdir(uploadsDirectory, { recursive: true }),
+  ]);
+  const oldDate = "2020-01-01T00:00:00.000Z";
+  for (const [id, status] of [
+    ["old-completed", "COMPLETED"],
+    ["old-queued", "QUEUED"],
+  ] as const) {
+    const inputFile = path.join(uploadsDirectory, `${id}.pdf`);
+    await writeFile(inputFile, "%PDF-test", "utf8");
+    const job: JobRecord = {
+      id,
+      owner_uid: "local-development",
+      run_id: id,
+      status,
+      stage: status,
+      progress: 0,
+      created_at: oldDate,
+      updated_at: oldDate,
+      input_file: inputFile,
+      original_filename: `${id}.pdf`,
+      input_size_bytes: 9,
+      fields: {
+        aspect_ratio: "16:9",
+        duration_option: "0-1",
+        language: "vi",
+        voice_id: "vi-VN-Neural2-A",
+        visual_style: "modern_minimal",
+      },
+      attempt: 1,
+      warnings: [],
+    };
+    await writeFile(path.join(jobsDirectory, `${id}.json`), JSON.stringify(job));
+  }
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+    retentionDays: 1,
+  });
+  t.after(() => server.close());
+
+  const response = await server.inject({ method: "GET", url: "/api/jobs" });
+  assert.deepEqual(
+    response.json().jobs.map((job: { id: string }) => job.id),
+    ["old-queued"],
+  );
+  await assert.rejects(
+    access(path.join(uploadsDirectory, "old-completed.pdf")),
+  );
+  await access(path.join(uploadsDirectory, "old-queued.pdf"));
 });

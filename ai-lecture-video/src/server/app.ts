@@ -5,6 +5,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rm,
   stat,
   unlink,
   writeFile,
@@ -46,6 +47,14 @@ import {
   type JobRecord,
 } from "./types.js";
 import { buildResultDetail } from "./result-service.js";
+import {
+  assertCanCreateJob,
+  QuotaExceededError,
+  quotaLimitsFromEnv,
+  quotaSnapshot,
+  reservationSeconds,
+  type UserQuotaLimits,
+} from "./quota-service.js";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -79,6 +88,16 @@ function safeArtifactPath(
   return resolved;
 }
 
+function safePathWithin(root: string, candidate: string): string {
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(candidate);
+  const relative = path.relative(resolvedRoot, resolved);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Đường dẫn xóa nằm ngoài phạm vi cho phép.");
+  }
+  return resolved;
+}
+
 export async function createServer(
   projectDirectory: string,
   options: {
@@ -86,6 +105,8 @@ export async function createServer(
     autoRunJobs?: boolean;
     authRequired?: boolean;
     firebaseServices?: FirebaseServices;
+    quotaLimits?: Partial<UserQuotaLimits>;
+    retentionDays?: number;
   } = {},
 ): Promise<FastifyInstance> {
   const server = Fastify({
@@ -118,6 +139,60 @@ export async function createServer(
       : undefined);
   const store = new JobStore(jobsDirectory, firebase?.persistJob);
   await store.initialize();
+  const quotaLimits = {
+    ...quotaLimitsFromEnv(),
+    ...options.quotaLimits,
+  };
+  const retentionDays =
+    options.retentionDays ??
+    Math.max(0, Number(process.env.JOB_RETENTION_DAYS ?? 0) || 0);
+
+  async function deleteJobData(job: JobRecord): Promise<void> {
+    await firebase?.deleteJob?.(job);
+    const inputPath = safePathWithin(uploadsDirectory, job.input_file);
+    await unlink(inputPath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+    if (job.run_directory) {
+      await rm(safeRunDirectory(projectDirectory, job), {
+        recursive: true,
+        force: true,
+      });
+    }
+    const configDirectory = path.resolve(
+      projectDirectory,
+      "backend-data",
+      "jobs",
+    );
+    if (/^[a-zA-Z0-9_-]+$/u.test(job.run_id)) {
+      await unlink(
+        safePathWithin(
+          configDirectory,
+          path.join(configDirectory, `${job.run_id}.config.json`),
+        ),
+      ).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+    }
+    await store.delete(job.id);
+  }
+
+  if (retentionDays > 0) {
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const expired = store.list().filter(
+      (job) =>
+        ["COMPLETED", "FAILED", "CANCELLED"].includes(job.status) &&
+        Date.parse(job.updated_at) < cutoff,
+    );
+    for (const job of expired) {
+      await deleteJobData(job).catch((error) => {
+        server.log.warn(
+          { err: error, jobId: job.id },
+          "Retention cleanup failed",
+        );
+      });
+    }
+  }
   const runner = new JobRunner(
     store,
     projectDirectory,
@@ -222,6 +297,21 @@ export async function createServer(
     }
   });
 
+  server.get("/api/quota", async (request, reply) => {
+    try {
+      const user = await authenticate(request.headers.authorization);
+      return {
+        ...quotaSnapshot(store.list(), user.uid, quotaLimits),
+        retention_days: retentionDays,
+      };
+    } catch (error) {
+      return reply.code(401).send({
+        error: "UNAUTHENTICATED",
+        message: errorMessage(error),
+      });
+    }
+  });
+
   server.get<{ Params: { id: string } }>(
     "/api/jobs/:id",
     async (request, reply) => {
@@ -257,6 +347,7 @@ export async function createServer(
     const fields: Record<string, string> = {};
     let originalFilename = "";
     let uploaded = false;
+    let fileWritten = false;
     try {
       for await (const part of request.parts()) {
         if (part.type === "file") {
@@ -273,6 +364,7 @@ export async function createServer(
             throw new Error("Chỉ chấp nhận file PDF.");
           }
           await pipeline(part.file, createWriteStream(uploadPath, { flags: "wx" }));
+          fileWritten = true;
           if (part.file.truncated) {
             throw new Error("PDF vượt giới hạn 50 MB.");
           }
@@ -291,6 +383,11 @@ export async function createServer(
       }
       const inputStat = await stat(uploadPath);
       const parsedFields = createJobFieldsSchema.parse(fields);
+      assertCanCreateJob(
+        quotaSnapshot(store.list(), user.uid, quotaLimits),
+        inputStat.size,
+        parsedFields,
+      );
       const now = new Date().toISOString();
       const job: JobRecord = {
         id,
@@ -306,6 +403,7 @@ export async function createServer(
         original_filename: originalFilename,
         input_size_bytes: inputStat.size,
         fields: parsedFields,
+        quota_reserved_seconds: reservationSeconds(parsedFields),
         attempt: 1,
         warnings: [],
         modules: initialModuleStates(),
@@ -319,14 +417,53 @@ export async function createServer(
       if (autoRunJobs) runner.enqueue(id);
       return reply.code(202).send(toPublicJob(job));
     } catch (error) {
-      if (uploaded) await unlink(uploadPath).catch(() => undefined);
+      if (uploaded || fileWritten) {
+        await unlink(uploadPath).catch(() => undefined);
+      }
       request.log.warn({ err: error }, "Create job rejected");
-      return reply.code(400).send({
-        error: "INVALID_JOB_REQUEST",
+      const quotaError =
+        error instanceof QuotaExceededError ? error : undefined;
+      return reply.code(quotaError ? 429 : 400).send({
+        error: quotaError?.code ?? "INVALID_JOB_REQUEST",
         message: errorMessage(error),
       });
     }
   });
+
+  server.delete<{ Params: { id: string } }>(
+    "/api/jobs/:id",
+    async (request, reply) => {
+      let user: AuthenticatedUser;
+      try {
+        user = await authenticate(request.headers.authorization);
+      } catch (error) {
+        return reply.code(401).send({
+          error: "UNAUTHENTICATED",
+          message: errorMessage(error),
+        });
+      }
+      const job = store.get(request.params.id);
+      if (!job || !ownsJob(job, user)) {
+        return reply.code(404).send({ error: "JOB_NOT_FOUND" });
+      }
+      if (job.status === "QUEUED" || job.status === "RUNNING") {
+        return reply.code(409).send({
+          error: "JOB_NOT_DELETABLE",
+          message: "Hãy hủy xử lý trước khi xóa job.",
+        });
+      }
+      try {
+        await deleteJobData(job);
+        return { deleted: true, id: job.id };
+      } catch (error) {
+        request.log.error({ err: error, jobId: job.id }, "Delete job failed");
+        return reply.code(500).send({
+          error: "JOB_DELETE_FAILED",
+          message: errorMessage(error),
+        });
+      }
+    },
+  );
 
   server.post<{ Params: { id: string } }>(
     "/api/jobs/:id/cancel",

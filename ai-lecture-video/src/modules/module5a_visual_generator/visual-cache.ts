@@ -7,8 +7,9 @@ import type {
   StoryboardArtifact,
   VisualManifest,
 } from "../../core/contracts.js";
+import type { PipelineConfig } from "../../core/config.js";
 
-const RENDERER_VERSION = "module5a-v2-remotion-4.0.501";
+const RENDERER_VERSION = "module5a-v3-style-and-vietnamese-font";
 
 const cacheMetadataSchema = z.object({
   status: z.enum(["READY", "WARNING", "FAILED"]),
@@ -21,6 +22,7 @@ export function createVisualCacheKey(
   document: DocumentArtifact,
   width: number,
   height: number,
+  visualStyle: PipelineConfig["visual_style"] = "modern_minimal",
 ): string {
   const { image_path: _runSpecificImagePath, ...stableProps } =
     scene.visual.props;
@@ -40,6 +42,7 @@ export function createVisualCacheKey(
         },
         width,
         height,
+        visual_style: visualStyle,
       }),
     )
     .digest("hex");

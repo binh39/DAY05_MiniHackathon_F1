@@ -9,10 +9,12 @@ Phạm vi PDF hiện tại của MVP: tối đa 50 MB và 80 trang.
 
 - Mỗi module có một nhiệm vụ và artifact JSON riêng.
 - Mọi claim quan trọng phải trace về `source_id`, không chỉ số trang.
-- Chế độ `FULL` tự ước tính thời lượng; `max_chapter_minutes` không phải giới
-  hạn thời lượng của toàn video.
-- `CONCISE` và `SUMMARY` đã có trong contract nhưng chưa được quality-test;
-  luồng MVP hiện chỉ cam kết `FULL`.
+- Option thời lượng là contract bắt buộc của toàn video. Module 2 phân bổ
+  `target_seconds`, Module 3 giới hạn word/narration budget và Module 6 không
+  xuất kết quả ngoài `min_seconds`–`max_seconds`.
+- `CONCISE` và `SUMMARY` dùng `OUT_OF_SCOPE` để ghi nhận nguồn không thể giảng
+  trong video ngắn; nguồn này vẫn có traceability nhưng không được biến thành
+  narration.
 - Module 5A và 5B chạy song song.
 - Mỗi output được Zod kiểm tra trước khi chuyển sang module tiếp theo.
 - Module 1–4 dùng Vertex AI qua Application Default Credentials. Module 5A dùng
@@ -259,9 +261,23 @@ render video cuối. Module hiện đã có:
 - FFprobe final QA cho duration, codec, resolution, fps và audio stream;
 - checksum cho MP4, SRT và coverage report.
 
+## Quota, xóa dữ liệu và retention
+
+Backend cung cấp `GET /api/quota` để frontend hiển thị hạn mức còn lại và
+`DELETE /api/jobs/:id` để xóa job thuộc đúng tài khoản. Việc xóa bao gồm PDF,
+artifact trung gian/final ở local, Firestore document và toàn bộ Firebase Storage
+prefix của job. Job đang `QUEUED` hoặc `RUNNING` phải được hủy trước khi xóa.
+
+Các guardrail được cấu hình bằng `USER_MAX_ACTIVE_JOBS`,
+`USER_MAX_STORED_JOBS`, `USER_MAX_STORAGE_MEGABYTES` và
+`USER_MONTHLY_VIDEO_MINUTES`. `JOB_RETENTION_DAYS=30` tự dọn job terminal quá
+hạn khi API khởi động; đặt `0` để tắt. Retention không tự xóa job đang hoạt động.
+
 ## Bước implementation tiếp theo
 
 Pipeline Module 1–6, job API, Firebase multi-user, outline approval, result
-navigation và feedback đã chạy. UI thư viện chỉ hiển thị job/PDF thật, không còn
-seed data. Đường găng tiếp theo là progress/timeout theo module, quota theo user
-và chạy golden-set/user validation.
+navigation, feedback, quota và xóa dữ liệu đã chạy. UI thư viện chỉ hiển thị
+job/PDF thật, không còn seed data. Pipeline có structured progress, timeout
+riêng cho từng module và resume đúng module lỗi; 5A/5B được theo dõi độc lập.
+Đường găng tiếp theo là App Check/security hardening và chạy golden-set/user
+validation.

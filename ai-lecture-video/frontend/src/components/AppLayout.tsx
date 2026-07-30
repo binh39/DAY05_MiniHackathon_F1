@@ -76,16 +76,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Settings size={20} />
             <span>Cài đặt</span>
           </button>
-          <div className="credit-card">
-            <div className="credit-row">
-              <span>Thời lượng tháng này</span>
-              <strong>36 / 60 phút</strong>
-            </div>
-            <div className="credit-track">
-              <span />
-            </div>
-            <button>Nâng cấp gói</button>
-          </div>
         </div>
       </aside>
       {mobileOpen && (

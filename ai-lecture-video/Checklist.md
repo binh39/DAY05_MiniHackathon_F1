@@ -9,18 +9,18 @@
 | Nhóm | Hoàn thành | Tổng |
 |---|---:|---:|
 | Product scope | 4 | 8 |
-| Foundation | 11 | 16 |
+| Foundation | 13 | 16 |
 | Module 1 | 21 | 30 |
 | Module 2 | 21 | 22 |
 | Module 3 | 24 | 25 |
 | Module 4–6 | 70 | 74 |
-| Backend + Web app | 22 | 27 |
+| Backend + Web app | 25 | 27 |
 | Evaluation | 2 | 14 |
-| Security + Deployment | 5 | 22 |
+| Security + Deployment | 8 | 22 |
 | Milestones | 2 | 6 |
-| **Tổng cộng** | **182** | **244** |
+| **Tổng cộng** | **190** | **244** |
 
-Có 14 task đang ở trạng thái **Partial**. Audit dựa trên code, 48 unit/integration
+Có 11 task đang ở trạng thái **Partial**. Audit dựa trên code, 55 unit/integration
 test, artifact thật của `Lecture-02-Process.pdf`, kiểm thử API/browser end-to-end
 và các báo cáo trong `eval/`.
 Chi tiết bằng chứng: `eval/checklist-audit-2026-07-30.md`.
@@ -55,9 +55,8 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] Tạo job state machine.
 - [ ] Tạo error taxonomy.
 - [ ] Thêm structured logging.
-- [ ] Thêm resume từ module lỗi.
-- [ ] Thêm cache/idempotency toàn pipeline — **Partial:** Module 1–6 đã có cache
-  riêng; chưa có resume orchestration từ một module tùy ý.
+- [x] Thêm resume từ module lỗi.
+- [x] Thêm cache/idempotency toàn pipeline.
 
 ## C. Module 1 — Document Intelligence
 
@@ -239,8 +238,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] API tạo job.
 - [x] Job runner chạy ngoài HTTP request.
 - [x] Giới hạn concurrency.
-- [ ] Timeout theo module — **Partial:** đã có timeout 30 phút cho toàn pipeline;
-  chưa tách timeout và chính sách retry cho từng module.
+- [x] Timeout theo module.
 - [x] API lấy trạng thái job.
 - [x] API cancel/retry job.
 - [x] Pipeline pause sau Module 2.
@@ -252,15 +250,15 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] Trang upload PDF.
 - [x] Hiển thị giới hạn file.
 - [ ] Chọn coverage mode.
-- [ ] Chọn audience/language/voice — **Partial:** đã chọn được language và voice;
-  audience vẫn đang dùng cấu hình mặc định.
-- [ ] Upload progress.
+- [ ] Chọn audience/language/voice — **Partial:** language và voice ID đã được
+  truyền thật, backend chặn voice sai ngôn ngữ; audience vẫn dùng mặc định.
+- [x] Upload progress.
 - [x] Preview document analysis.
 - [x] Hiển thị chapter và thời lượng dự kiến.
 - [x] Hiển thị warning/unreadable page.
 - [x] Outline review và approve.
 - [x] Processing progress theo module.
-- [ ] Hiển thị Module 5A/5B song song.
+- [x] Hiển thị Module 5A/5B song song.
 - [x] Result video player.
 - [x] Chapter navigation.
 - [x] Download MP4/SRT.
@@ -301,10 +299,12 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [ ] Không thực thi content nhúng trong PDF.
 - [ ] Chống prompt injection từ PDF — **Partial:** prompt đã coi PDF là dữ liệu
   và cấm làm theo instruction trong tài liệu; chưa có adversarial test.
-- [ ] Rate limit và quota — **Partial:** API đã có rate limit toàn cục; chưa có
-  quota thời lượng/token theo từng user.
-- [ ] Chính sách retention.
-- [ ] Xóa toàn bộ artifact của một job.
+- [x] Rate limit và quota — API có rate limit toàn cục và quota riêng theo user
+  cho job đang chạy, số job lưu, dung lượng và phút video theo tháng.
+- [x] Chính sách retention — cấu hình bằng `JOB_RETENTION_DAYS`; chỉ tự xóa job
+  terminal quá hạn, không xóa job đang hoạt động.
+- [x] Xóa toàn bộ artifact của một job — kiểm tra owner, từ chối job đang chạy,
+  xóa metadata/upload/run local cùng Firestore và Storage.
 - [ ] Xác minh data policy của AI/TTS provider.
 
 ## N. Deployment và demo

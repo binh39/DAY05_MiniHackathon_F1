@@ -6,7 +6,6 @@ import {
   Clock3,
   Download,
   Film,
-  Filter,
   ListChecks,
   MessageSquareText,
   Pause,
@@ -14,6 +13,7 @@ import {
   Plus,
   Search,
   Star,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -34,6 +34,10 @@ import {
 import { useLibrary } from "../contexts";
 import { useNavigate, useRouter } from "../router";
 import type { VideoItem } from "../types";
+import type {
+  PipelineModuleId,
+  PipelineModuleStates,
+} from "../types";
 
 function formatTimestamp(seconds: number): string {
   const rounded = Math.max(0, Math.floor(seconds));
@@ -53,8 +57,69 @@ function emptyFeedback(): FeedbackInput {
   };
 }
 
+const moduleLabels: Record<PipelineModuleId, string> = {
+  module1_document_intelligence: "1 · Phân tích PDF",
+  module2_lecture_planner: "2 · Lập outline",
+  module3_script_generator: "3 · Viết kịch bản",
+  module4_storyboard_generator: "4 · Storyboard",
+  module5a_visual_generator: "5A · Hình ảnh",
+  module5b_voice_generator: "5B · Giọng đọc",
+  module6_video_composer: "6 · Ghép video",
+};
+
+function stageLabel(stage?: string): string {
+  const labels: Record<string, string> = {
+    QUEUED: "Đang chờ xử lý",
+    QUEUED_AFTER_APPROVAL: "Đang chờ tiếp tục từ Module 3",
+    QUEUED_FOR_MODULE_RETRY: "Đang chờ chạy lại module lỗi",
+    STARTING: "Đang khởi động pipeline",
+    ANALYZING_DOCUMENT: "Module 1 đang phân tích PDF",
+    PLANNING_LECTURE: "Module 2 đang lập outline",
+    GENERATING_SCRIPT: "Module 3 đang viết kịch bản",
+    GENERATING_STORYBOARD: "Module 4 đang tạo storyboard",
+    GENERATING_VISUALS: "Module 5A đang tạo hình ảnh",
+    GENERATING_VOICE: "Module 5B đang tạo giọng đọc",
+    GENERATING_ASSETS_PARALLEL: "Module 5A và 5B đang chạy song song",
+    COMPOSING_VIDEO: "Module 6 đang ghép video",
+  };
+  return labels[stage ?? ""] ?? "Đang xử lý pipeline";
+}
+
+function ModuleProgress({ modules }: { modules: PipelineModuleStates }) {
+  function item(module: PipelineModuleId) {
+    const state = modules[module];
+    return (
+      <div className={`pipeline-module ${state.status.toLowerCase()}`} key={module}>
+        <span>
+          {state.status === "COMPLETED"
+            ? "✓"
+            : state.status === "RUNNING"
+              ? "●"
+              : state.status === "FAILED"
+                ? "!"
+                : "○"}
+        </span>
+        <strong>{moduleLabels[module]}</strong>
+      </div>
+    );
+  }
+  return (
+    <div className="pipeline-module-list">
+      {item("module1_document_intelligence")}
+      {item("module2_lecture_planner")}
+      {item("module3_script_generator")}
+      {item("module4_storyboard_generator")}
+      <div className="parallel-module-pair">
+        {item("module5a_visual_generator")}
+        {item("module5b_voice_generator")}
+      </div>
+      {item("module6_video_composer")}
+    </div>
+  );
+}
+
 export function VideosPage() {
-  const { videos, retryVideo, cancelVideo } = useLibrary();
+  const { videos, retryVideo, cancelVideo, deleteLibraryJob } = useLibrary();
   const navigate = useNavigate();
   const location = useRouter();
   const [query, setQuery] = useState("");
@@ -74,6 +139,7 @@ export function VideosPage() {
   const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [hasSavedFeedback, setHasSavedFeedback] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [toast, setToast] = useState(
     Boolean(
@@ -148,11 +214,6 @@ export function VideosPage() {
       ) ?? result?.chapters[0],
     [activeChapterId, result],
   );
-  const totalDurationSeconds = videos.reduce(
-    (total, video) => total + (video.durationSeconds ?? 0),
-    0,
-  );
-
   function seekToChapter(chapter: ResultDetail["chapters"][number]) {
     setActiveChapterId(chapter.chapter_id);
     if (videoRef.current) {
@@ -205,6 +266,26 @@ export function VideosPage() {
     }
   }
 
+  async function removeVideo(video: VideoItem) {
+    if (
+      !video.jobId ||
+      !window.confirm(
+        `Xóa "${video.title}" cùng PDF và toàn bộ artifact liên quan? Hành động này không thể hoàn tác.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      setDeleteError("");
+      if (playing?.jobId === video.jobId) setPlaying(null);
+      await deleteLibraryJob(video.jobId);
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "Không thể xóa video.",
+      );
+    }
+  }
+
   return (
     <div className="library-page videos-page page-enter">
       {toast && (
@@ -225,7 +306,6 @@ export function VideosPage() {
       )}
       <div className="page-heading library-heading">
         <div>
-          <div className="eyebrow"><Film size={16} /> Thành phẩm</div>
           <h1>Video của tôi</h1>
           <p>Xem, chia sẻ và tải xuống những video bạn đã tạo.</p>
         </div>
@@ -234,7 +314,7 @@ export function VideosPage() {
         </button>
       </div>
 
-      <div className="video-summary-banner">
+      <div className="video-summary-banner unified-library-bar">
         <div>
           <span className="summary-badge"><Film size={19} /></span>
           <div><strong>{videos.filter((v) => v.status === "ready").length}</strong><span>Video hoàn tất</span></div>
@@ -247,41 +327,33 @@ export function VideosPage() {
           <span className="summary-badge purple"><ListChecks size={19} /></span>
           <div><strong>{videos.filter((v) => v.status === "review").length}</strong><span>Chờ duyệt</span></div>
         </div>
-        <div className="minutes-created">
-          <span>Thời lượng đã tạo</span>
-          <strong>
-            {Math.floor(totalDurationSeconds / 60)} phút{" "}
-            {Math.round(totalDurationSeconds % 60)} giây
-          </strong>
+        <div className="library-toolbar unified-library-toolbar">
+          <label className="search-box">
+            <Search size={19} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Tìm kiếm video..."
+            />
+          </label>
+          <div className="filter-tabs">
+            {[
+              ["all", "Tất cả"],
+              ["ready", "Hoàn tất"],
+              ["processing", "Đang xử lý"],
+              ["review", "Chờ duyệt"],
+              ["failed", "Lỗi"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value as typeof filter)}
+                className={filter === value ? "active" : ""}
+              >{label}</button>
+            ))}
+          </div>
         </div>
       </div>
-
-      <div className="library-toolbar video-toolbar">
-        <label className="search-box">
-          <Search size={19} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm kiếm video..."
-          />
-        </label>
-        <div className="filter-tabs">
-          {[
-            ["all", "Tất cả"],
-            ["ready", "Hoàn tất"],
-            ["processing", "Đang xử lý"],
-            ["review", "Chờ duyệt"],
-            ["failed", "Lỗi"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value as typeof filter)}
-              className={filter === value ? "active" : ""}
-            >{label}</button>
-          ))}
-        </div>
-        <button className="toolbar-button compact-filter"><Filter size={18} /></button>
-      </div>
+      {deleteError && <p className="library-error">{deleteError}</p>}
 
       <div className="video-grid">
         {filtered.map((video) => (
@@ -318,12 +390,19 @@ export function VideosPage() {
                   <CircleX size={30} />
                   <strong>Xử lý chưa thành công</strong>
                   <small>{video.error ?? "Pipeline đã dừng."}</small>
+                  {video.failedModule && (
+                    <small>
+                      Có thể tiếp tục từ {moduleLabels[
+                        video.failedModule as PipelineModuleId
+                      ] ?? video.failedModule}.
+                    </small>
+                  )}
                   {video.jobId && (
                     <button
                       className="retry-button"
                       onClick={() => void retryVideo(video.jobId!)}
                     >
-                      Thử lại
+                      {video.failedModule ? "Tiếp tục từ module lỗi" : "Thử lại"}
                     </button>
                   )}
                 </div>
@@ -343,6 +422,16 @@ export function VideosPage() {
                   <strong>{video.title}</strong>
                   <p>{video.documentName}</p>
                 </div>
+                {video.status !== "processing" && video.jobId && (
+                  <button
+                    className="delete-library-button"
+                    onClick={() => void removeVideo(video)}
+                    aria-label={`Xóa ${video.title}`}
+                    title="Xóa job và toàn bộ artifact"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
               {video.status === "review" ? (
                 <div className="review-meta">
@@ -356,10 +445,11 @@ export function VideosPage() {
               ) : video.status === "processing" ? (
                 <div className="processing-bar">
                   <div>
-                    <span>{video.stage === "QUEUED_AFTER_APPROVAL" ? "Đang chờ tiếp tục từ Module 3" : "Đang phân tích và tạo outline"}</span>
+                    <span>{stageLabel(video.stage)}</span>
                     <strong>{video.progress ?? 18}%</strong>
                   </div>
                   <div className="storage-track"><span style={{ width: `${video.progress ?? 18}%` }} /></div>
+                  {video.modules && <ModuleProgress modules={video.modules} />}
                   {video.jobId && (
                     <button
                       className="cancel-job-button"

@@ -100,6 +100,34 @@ function uniqueInOrder(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+function allocateIntegerBudget(
+  total: number,
+  weights: number[],
+  minimums: number[],
+): number[] {
+  const minimumTotal = minimums.reduce((sum, value) => sum + value, 0);
+  if (minimumTotal > total) {
+    throw new Error(
+      `Plan có quá nhiều chapter/item để nằm trong ${total}s (minimum ${minimumTotal}s). Hãy gộp chapter và item.`,
+    );
+  }
+  const remaining = total - minimumTotal;
+  const weightTotal = weights.reduce((sum, value) => sum + Math.max(1, value), 0);
+  const raw = weights.map(
+    (weight, index) =>
+      minimums[index]! + (remaining * Math.max(1, weight)) / weightTotal,
+  );
+  const allocated = raw.map(Math.floor);
+  let leftover = total - allocated.reduce((sum, value) => sum + value, 0);
+  const order = raw
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((left, right) => right.fraction - left.fraction);
+  for (let cursor = 0; leftover > 0; cursor += 1, leftover -= 1) {
+    allocated[order[cursor % order.length]!.index]! += 1;
+  }
+  return allocated;
+}
+
 export function buildLecturePlan(
   decision: PlannerDecision,
   document: DocumentArtifact,
@@ -109,7 +137,7 @@ export function buildLecturePlan(
     document.sources.map((source) => [source.source_id, source]),
   );
 
-  const chapters = decision.chapters.map((chapter) => {
+  const rawChapters = decision.chapters.map((chapter) => {
     const items = chapter.items.map((item) => {
       const sources = item.source_ids
         .map((sourceId) => sourceById.get(sourceId))
@@ -140,6 +168,36 @@ export function buildLecturePlan(
         18 + items.reduce((total, item) => total + item.duration_seconds, 0),
       source_ids: sourceIds,
       page_numbers: pages,
+      items,
+    };
+  });
+  const targetSeconds = config.duration.target_seconds;
+  const chapterBudgets = allocateIntegerBudget(
+    targetSeconds,
+    rawChapters.map((chapter) => chapter.duration_seconds),
+    rawChapters.map((chapter) => 18 + chapter.items.length),
+  );
+  const chapters = rawChapters.map((chapter, chapterIndex) => {
+    const itemBudget = chapterBudgets[chapterIndex]! - 18;
+    const itemDurations = allocateIntegerBudget(
+      itemBudget,
+      chapter.items.map((item) => item.duration_seconds),
+      chapter.items.map(() => 1),
+    );
+    const items = chapter.items.map((item, itemIndex) => {
+      const durationSeconds = itemDurations[itemIndex]!;
+      const teaches = ["EXPLAIN", "MENTION", "SHOW"].includes(item.treatment);
+      return {
+        ...item,
+        duration_seconds: durationSeconds,
+        estimated_narration_words: teaches
+          ? Math.max(1, Math.floor((durationSeconds / 60) * 110))
+          : 0,
+      };
+    });
+    return {
+      ...chapter,
+      duration_seconds: chapterBudgets[chapterIndex]!,
       items,
     };
   });
@@ -199,7 +257,7 @@ export function buildLecturePlan(
       accounted_pages: accountedPages,
       accounted_source_ids: accountedSourceIds,
       covered_pages: pagesForTreatments("EXPLAIN", "MENTION", "SHOW"),
-      reference_pages: pagesForTreatments("REFERENCE"),
+    reference_pages: pagesForTreatments("REFERENCE", "OUT_OF_SCOPE"),
       unreadable_pages: pagesForTreatments("UNREADABLE"),
       duplicate_pages: pagesForTreatments("DUPLICATE"),
       coverage_rate:

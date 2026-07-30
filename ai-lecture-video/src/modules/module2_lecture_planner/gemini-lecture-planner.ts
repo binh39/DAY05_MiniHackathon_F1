@@ -69,6 +69,7 @@ const responseJsonSchema = {
                     "MENTION",
                     "SHOW",
                     "REFERENCE",
+                    "OUT_OF_SCOPE",
                     "UNREADABLE",
                     "DUPLICATE",
                   ],
@@ -127,6 +128,8 @@ Product configuration:
 - Output language: ${config.language}
 - Detail level: ${config.detail_level}
 - Maximum chapter duration: ${config.max_chapter_minutes} minutes
+- Required total video range: ${config.duration.min_seconds}-${config.duration.max_seconds} seconds
+- Planning target: ${config.duration.target_seconds} seconds
 
 Your decisions:
 1. Split the material into ordered, coherent chapters.
@@ -137,11 +140,16 @@ Your decisions:
    - MENTION: briefly establish context.
    - SHOW: visually inspect an image, diagram, table, formula, or code.
    - REFERENCE: identify cover, agenda, bibliography, or non-teaching reference.
+   - OUT_OF_SCOPE: account for a valid source that cannot be taught within the selected total duration.
    - UNREADABLE: the source cannot be taught safely.
    - DUPLICATE: the source repeats content already represented elsewhere.
 
 Hard constraints:
 - Assign every source_id exactly once. Never omit or repeat a source.
+- The complete lecture must be designed for ${config.duration.target_seconds} seconds and must never exceed ${config.duration.max_seconds} seconds.
+- Use at most ${Math.max(1, Math.floor(config.duration.target_seconds / 40))} chapters. Merge adjacent sections when necessary.
+- In SUMMARY/CONCISE mode, prioritize the most instructionally valuable sources. Mark lower-priority valid content OUT_OF_SCOPE instead of expanding the lecture.
+- Keep at most ${Math.max(3, Math.floor(config.duration.target_seconds / 8))} sources across EXPLAIN, MENTION, and SHOW treatments; one concise item may group several adjacent sources.
 - Use only source IDs present in the input.
 - Keep source order aligned with page order. Do not jump backward between chapters.
 - In FULL mode, all CODE sources must be EXPLAIN or SHOW.

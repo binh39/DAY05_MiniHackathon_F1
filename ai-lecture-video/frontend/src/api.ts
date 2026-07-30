@@ -1,4 +1,10 @@
-import type { AspectRatio, DurationOption } from "./types";
+import type {
+  AspectRatio,
+  DurationOption,
+  LanguageCode,
+  PipelineModuleStates,
+  VisualStyle,
+} from "./types";
 import { firebaseAuth } from "./firebase";
 
 const API_BASE_URL =
@@ -25,6 +31,7 @@ export interface ApiJob {
     duration_option: "0-1" | "1-3" | "3-5" | "5-8" | "8-10";
     language: "vi" | "en";
     voice_id: string;
+    visual_style: VisualStyle;
   };
   error?: string;
   warnings: string[];
@@ -39,6 +46,8 @@ export interface ApiJob {
   document_pages?: number;
   result_duration_seconds?: number;
   has_feedback?: boolean;
+  modules?: PipelineModuleStates;
+  failed_module?: string;
 }
 
 export interface FeedbackInput {
@@ -54,6 +63,30 @@ export interface FeedbackInput {
 export interface FeedbackRecord extends FeedbackInput {
   created_at: string;
   updated_at: string;
+}
+
+export interface UserQuota {
+  period: string;
+  limits: {
+    max_active_jobs: number;
+    max_stored_jobs: number;
+    max_storage_bytes: number;
+    monthly_video_seconds: number;
+  };
+  usage: {
+    active_jobs: number;
+    stored_jobs: number;
+    storage_bytes: number;
+    monthly_video_seconds: number;
+  };
+  remaining: {
+    active_jobs: number;
+    stored_jobs: number;
+    storage_bytes: number;
+    monthly_video_seconds: number;
+  };
+  can_create_job: boolean;
+  retention_days: number;
 }
 
 export interface OutlineDraftChapter {
@@ -168,21 +201,57 @@ export async function createJob(input: {
   title: string;
   ratio: AspectRatio;
   duration: DurationOption;
-}): Promise<ApiJob> {
+  language: LanguageCode;
+  voiceId: string;
+  visualStyle: VisualStyle;
+}, onUploadProgress?: (percent: number) => void): Promise<ApiJob> {
   const form = new FormData();
   form.append("file", input.file);
   form.append("title", input.title);
   form.append("aspect_ratio", input.ratio);
   form.append("duration_option", durationCode(input.duration));
-  form.append("language", "vi");
-  form.append("voice_id", "vi-VN-Neural2-A");
-  return responseJson<ApiJob>(
-    await fetch(`${API_BASE_URL}/jobs`, {
-      method: "POST",
-      headers: await authorizationHeaders(),
-      body: form,
-    }),
-  );
+  form.append("language", input.language);
+  form.append("voice_id", input.voiceId);
+  form.append("visual_style", input.visualStyle);
+  const headers = await authorizationHeaders();
+  return new Promise<ApiJob>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${API_BASE_URL}/jobs`);
+    for (const [name, value] of Object.entries(headers)) {
+      request.setRequestHeader(name, value);
+    }
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onUploadProgress?.(
+          Math.min(100, Math.round((event.loaded / event.total) * 100)),
+        );
+      }
+    });
+    request.addEventListener("load", () => {
+      try {
+        const body = JSON.parse(request.responseText) as ApiJob & {
+          message?: string;
+        };
+        if (request.status < 200 || request.status >= 300) {
+          reject(
+            new Error(body.message ?? `API trả HTTP ${request.status}.`),
+          );
+          return;
+        }
+        onUploadProgress?.(100);
+        resolve(body);
+      } catch {
+        reject(new Error("Backend trả response không hợp lệ."));
+      }
+    });
+    request.addEventListener("error", () =>
+      reject(new Error("Không thể kết nối backend khi upload.")),
+    );
+    request.addEventListener("abort", () =>
+      reject(new Error("Upload đã bị hủy.")),
+    );
+    request.send(form);
+  });
 }
 
 export async function listJobs(): Promise<ApiJob[]> {
@@ -192,6 +261,23 @@ export async function listJobs(): Promise<ApiJob[]> {
     }),
   );
   return response.jobs;
+}
+
+export async function getQuota(): Promise<UserQuota> {
+  return responseJson<UserQuota>(
+    await fetch(`${API_BASE_URL}/quota`, {
+      headers: await authorizationHeaders(),
+    }),
+  );
+}
+
+export async function deleteJob(id: string): Promise<void> {
+  await responseJson<{ deleted: true; id: string }>(
+    await fetch(`${API_BASE_URL}/jobs/${id}`, {
+      method: "DELETE",
+      headers: await authorizationHeaders(),
+    }),
+  );
 }
 
 export async function retryJob(id: string): Promise<ApiJob> {

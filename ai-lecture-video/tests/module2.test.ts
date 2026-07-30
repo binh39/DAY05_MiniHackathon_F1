@@ -21,6 +21,13 @@ const config: PipelineConfig = {
   audience: "beginner",
   language: "vi",
   detail_level: "standard",
+  visual_style: "modern_minimal",
+  duration: {
+    option: "8-10",
+    min_seconds: 0,
+    max_seconds: 1800,
+    target_seconds: 540,
+  },
   max_chapter_minutes: 8,
   limits: {
     max_pdf_megabytes: 50,
@@ -174,6 +181,7 @@ async function temporaryDirectory(t: test.TestContext): Promise<string> {
 test("builds deterministic duration and full source coverage", () => {
   const plan = buildLecturePlan(validDecision, document, config);
   validateLecturePlan(plan, document, config);
+  assert.equal(plan.estimated_duration_seconds, config.duration.target_seconds);
 
   assert.equal(plan.coverage.coverage_rate, 1);
   assert.deepEqual(plan.coverage.accounted_pages, [1, 2, 3]);

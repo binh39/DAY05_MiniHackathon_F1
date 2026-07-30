@@ -26,6 +26,13 @@ function config(inputPdf: string, maxPages = 80): PipelineConfig {
     audience: "beginner",
     language: "vi",
     detail_level: "standard",
+    visual_style: "modern_minimal",
+    duration: {
+      option: "8-10",
+      min_seconds: 0,
+      max_seconds: 1800,
+      target_seconds: 540,
+    },
     max_chapter_minutes: 8,
     limits: {
       max_pdf_megabytes: 50,

@@ -8,6 +8,7 @@ import {
   type RenderStillOptions,
 } from "@remotion/renderer";
 import type { StoryboardArtifact } from "../../core/contracts.js";
+import type { PipelineConfig } from "../../core/config.js";
 import type { SceneRenderProps } from "../../remotion/scene-render-types.js";
 
 type Browser = NonNullable<RenderStillOptions["puppeteerInstance"]>;
@@ -45,6 +46,7 @@ export async function createRemotionRenderSession(
   projectDirectory: string,
   width: number,
   height: number,
+  visualStyle: PipelineConfig["visual_style"],
 ): Promise<RemotionRenderSession> {
   const entryPoint = path.join(
     projectDirectory,
@@ -78,6 +80,7 @@ export async function createRemotionRenderSession(
         resolvedImageSrc: await dataUri(scene, projectDirectory),
         width,
         height,
+        visualStyle,
       };
       const composition = await selectComposition({
         serveUrl,

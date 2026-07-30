@@ -72,6 +72,7 @@ async function main(): Promise<void> {
     projectDirectory,
     1_920,
     1_080,
+    "modern_minimal",
   );
   try {
     const outputPath = path.join(outputDirectory, "crop-highlight.png");

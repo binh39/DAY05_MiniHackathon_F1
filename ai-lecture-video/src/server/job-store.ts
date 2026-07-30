@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { JobRecord } from "./types.js";
 
@@ -73,6 +73,16 @@ export class JobStore {
     this.jobs.set(id, updated);
     await this.persist(updated);
     return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    if (!this.jobs.has(id)) return;
+    await unlink(path.join(this.directory, `${id}.json`)).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      },
+    );
+    this.jobs.delete(id);
   }
 
   private async persist(job: JobRecord): Promise<void> {

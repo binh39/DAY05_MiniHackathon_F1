@@ -78,6 +78,7 @@ export const lecturePlanSchema = z.object({
             "MENTION",
             "SHOW",
             "REFERENCE",
+            "OUT_OF_SCOPE",
             "UNREADABLE",
             "DUPLICATE",
           ]),

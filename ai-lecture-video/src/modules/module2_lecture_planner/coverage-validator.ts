@@ -172,6 +172,14 @@ export function validateLecturePlan(
   if (plan.estimated_duration_seconds !== expectedTotalDuration) {
     errors.push("estimated_duration_seconds không khớp tổng chapter.");
   }
+  if (
+    plan.estimated_duration_seconds < config.duration.min_seconds ||
+    plan.estimated_duration_seconds > config.duration.max_seconds
+  ) {
+    errors.push(
+      `Lecture plan ${plan.estimated_duration_seconds}s nằm ngoài khoảng ${config.duration.min_seconds}-${config.duration.max_seconds}s.`,
+    );
+  }
 
   if (errors.length > 0) {
     throw new Error(errors.join("\n"));

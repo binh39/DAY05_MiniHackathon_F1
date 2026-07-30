@@ -109,6 +109,7 @@ export async function generateVisualManifest(
       document,
       config.render.width,
       config.render.height,
+      config.visual_style,
     );
     const cached = await readVisualCache(
       projectDirectory,
@@ -141,6 +142,7 @@ export async function generateVisualManifest(
       projectDirectory,
       config.render.width,
       config.render.height,
+      config.visual_style,
     );
     try {
       for (const miss of misses) {

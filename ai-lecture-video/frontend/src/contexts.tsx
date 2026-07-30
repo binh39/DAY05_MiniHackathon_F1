@@ -20,17 +20,22 @@ import {
   cancelJob,
   clearArtifactCache,
   createJob,
+  deleteJob,
+  getQuota,
   listJobs,
   retryJob,
   type ApiJob,
+  type UserQuota,
 } from "./api";
 import { firebaseAuth, firebaseDb } from "./firebase";
 import type {
   AspectRatio,
   DocumentItem,
   DurationOption,
+  LanguageCode,
   User,
   VideoItem,
+  VisualStyle,
 } from "./types";
 
 interface AuthContextValue {
@@ -120,6 +125,10 @@ interface CreateVideoInput {
   title: string;
   ratio: AspectRatio;
   duration: DurationOption;
+  language: LanguageCode;
+  voiceId: string;
+  visualStyle: VisualStyle;
+  onUploadProgress?: (percent: number) => void;
 }
 
 interface LibraryContextValue {
@@ -128,6 +137,9 @@ interface LibraryContextValue {
   createVideo: (input: CreateVideoInput) => Promise<string>;
   retryVideo: (jobId: string) => Promise<void>;
   cancelVideo: (jobId: string) => Promise<void>;
+  deleteLibraryJob: (jobId: string) => Promise<void>;
+  quota: UserQuota | null;
+  refreshQuota: () => Promise<void>;
 }
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -136,6 +148,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [quota, setQuota] = useState<UserQuota | null>(null);
 
   useEffect(() => {
     localStorage.removeItem("lectureai-documents");
@@ -183,6 +196,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         stage: job.stage,
         durationSeconds: job.result_duration_seconds,
         hasFeedback: job.has_feedback,
+        modules: job.modules,
+        failedModule: job.failed_module,
       })),
     );
     const remoteDocuments: DocumentItem[] = jobs.map((job) => ({
@@ -209,13 +224,17 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     if (authLoading || !user) {
       setVideos([]);
       setDocuments([]);
+      setQuota(null);
       return;
     }
     let stopped = false;
     async function refresh() {
       try {
-        const jobs = await listJobs();
-        if (!stopped) await mergeApiJobs(jobs);
+        const [jobs, latestQuota] = await Promise.all([listJobs(), getQuota()]);
+        if (!stopped) {
+          await mergeApiJobs(jobs);
+          setQuota(latestQuota);
+        }
       } catch {
         // Backend availability is surfaced when the user submits a job.
       }
@@ -229,12 +248,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [authLoading, user?.uid]);
 
   async function createVideo(input: CreateVideoInput) {
-    const job = await createJob(input);
+    const job = await createJob(input, input.onUploadProgress);
     const id = `job-${job.id}`;
     const documentId = `job-doc-${job.id}`;
     const size = `${(input.file.size / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
-    setDocuments((current) => [
-      {
+    setDocuments((current) => {
+      const document: DocumentItem = {
         id: documentId,
         jobId: job.id,
         name: input.file.name,
@@ -243,11 +262,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         uploadedAt: "Vừa xong",
         status: "analyzing",
         color: "#7658f6",
-      },
-      ...current,
-    ]);
-    setVideos((current) => [
-      {
+      };
+      return [document, ...current.filter((item) => item.id !== documentId)];
+    });
+    setVideos((current) => {
+      const video: VideoItem = {
         id,
         title: input.title || input.file.name.replace(/\.pdf$/i, ""),
         documentName: input.file.name,
@@ -259,9 +278,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         color: "blue",
         jobId: job.id,
         stage: job.stage,
-      },
-      ...current,
-    ]);
+      };
+      return [video, ...current.filter((item) => item.id !== id)];
+    });
+    setQuota(await getQuota());
     return id;
   }
 
@@ -275,6 +295,17 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     await mergeApiJobs(await listJobs());
   }
 
+  async function deleteLibraryJob(jobId: string) {
+    await deleteJob(jobId);
+    clearArtifactCache();
+    await mergeApiJobs(await listJobs());
+    setQuota(await getQuota());
+  }
+
+  async function refreshQuota() {
+    setQuota(await getQuota());
+  }
+
   const value = useMemo(
     () => ({
       documents,
@@ -282,8 +313,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       createVideo,
       retryVideo,
       cancelVideo,
+      deleteLibraryJob,
+      quota,
+      refreshQuota,
     }),
-    [documents, videos],
+    [documents, videos, quota],
   );
   return (
     <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>

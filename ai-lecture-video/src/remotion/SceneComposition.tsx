@@ -39,12 +39,30 @@ const panel: React.CSSProperties = {
 function Frame({
   children,
   scene,
+  visualStyle,
 }: {
   children: React.ReactNode;
   scene: SceneRenderProps["scene"];
+  visualStyle: SceneRenderProps["visualStyle"];
 }) {
+  const styleOverrides: Record<
+    SceneRenderProps["visualStyle"],
+    React.CSSProperties
+  > = {
+    modern_minimal: {},
+    academic: {
+      background:
+        "radial-gradient(circle at 15% 10%, #30445e 0%, #111c2b 42%, #080d14 100%)",
+    },
+    dynamic: {
+      background:
+        "radial-gradient(circle at 85% 10%, #7c3aed 0%, #312e81 38%, #111827 100%)",
+    },
+  };
   return (
-    <AbsoluteFill style={{ ...base, padding: 72 }}>
+    <AbsoluteFill
+      style={{ ...base, ...styleOverrides[visualStyle], padding: 72 }}
+    >
       <div
         style={{
           position: "absolute",
@@ -498,6 +516,7 @@ function SummaryScene({ props }: { props: Record<string, unknown> }) {
 export function SceneComposition({
   scene,
   resolvedImageSrc,
+  visualStyle,
 }: SceneRenderProps) {
   const props = scene.visual.props;
   let content: React.ReactNode;
@@ -516,5 +535,5 @@ export function SceneComposition({
   } else {
     content = <BulletScene props={props} />;
   }
-  return <Frame scene={scene}>{content}</Frame>;
+  return <Frame scene={scene} visualStyle={visualStyle}>{content}</Frame>;
 }

@@ -9,6 +9,29 @@ export const pipelineConfigSchema = z.object({
   audience: z.string().min(1).default("beginner"),
   language: z.string().min(2).default("vi"),
   detail_level: z.enum(["brief", "standard", "detailed"]).default("standard"),
+  visual_style: z
+    .enum(["modern_minimal", "academic", "dynamic"])
+    .default("modern_minimal"),
+  duration: z
+    .object({
+      option: z.enum(["0-1", "1-3", "3-5", "5-8", "8-10"]),
+      min_seconds: z.number().nonnegative(),
+      max_seconds: z.number().positive(),
+      target_seconds: z.number().positive(),
+    })
+    .refine(
+      (value) =>
+        value.min_seconds < value.max_seconds &&
+        value.target_seconds >= value.min_seconds &&
+        value.target_seconds <= value.max_seconds,
+      "Duration target phải nằm trong khoảng min/max.",
+    )
+    .default({
+      option: "8-10",
+      min_seconds: 480,
+      max_seconds: 600,
+      target_seconds: 540,
+    }),
   max_chapter_minutes: z.number().positive().max(30).default(8),
   limits: z
     .object({

@@ -9,7 +9,7 @@ import {
 } from "../../core/contracts.js";
 import { validateLecturePlan } from "./coverage-validator.js";
 
-const PROMPT_VERSION = "module2-v1";
+const PROMPT_VERSION = "module2-v2-duration-contract";
 
 function documentPlanningHash(document: DocumentArtifact): string {
   const planningInput = {
@@ -42,6 +42,7 @@ export function createPlanCacheKey(
         language: config.language,
         detail_level: config.detail_level,
         max_chapter_minutes: config.max_chapter_minutes,
+        duration: config.duration,
       }),
     )
     .digest("hex");

@@ -12,6 +12,23 @@ export const durationOptionSchema = z.enum([
   "5-8",
   "8-10",
 ]);
+export const visualStyleSchema = z.enum([
+  "modern_minimal",
+  "academic",
+  "dynamic",
+]);
+
+const voicesByLanguage = {
+  vi: new Set([
+    "vi-VN-Neural2-A",
+    "vi-VN-Neural2-D",
+  ]),
+  en: new Set([
+    "en-US-Neural2-F",
+    "en-US-Neural2-D",
+    "en-US-Neural2-H",
+  ]),
+};
 
 export const createJobFieldsSchema = z.object({
   title: z.string().trim().min(1).max(160).optional(),
@@ -19,6 +36,15 @@ export const createJobFieldsSchema = z.object({
   duration_option: durationOptionSchema.default("5-8"),
   language: z.enum(["vi", "en"]).default("vi"),
   voice_id: z.string().trim().min(1).max(100).default("vi-VN-Neural2-A"),
+  visual_style: visualStyleSchema.default("modern_minimal"),
+}).superRefine((fields, context) => {
+  if (!voicesByLanguage[fields.language].has(fields.voice_id)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["voice_id"],
+      message: `Giọng ${fields.voice_id} không tương thích ngôn ngữ ${fields.language}.`,
+    });
+  }
 });
 
 export const feedbackSchema = z.object({
@@ -94,6 +120,8 @@ export interface JobRecord {
   approved_at?: string;
   document_pages?: number;
   result_duration_seconds?: number;
+  result_file_size_bytes?: number;
+  quota_reserved_seconds?: number;
   feedback?: FeedbackRecord;
   modules?: ModuleStates;
   failed_module?: PipelineModuleId;

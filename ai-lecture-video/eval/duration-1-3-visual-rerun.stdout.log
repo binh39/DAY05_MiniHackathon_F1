@@ -1,0 +1,18 @@
+
+> ai-lecture-video@0.1.0 run
+> tsx src/cli.ts run eval/config-duration-1-3-smoke.json
+
+→ module5a_visual_generator
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module5a_visual_generator","at":"2026-07-30T10:50:34.747Z"}
+  Rendering 11/11 visual scenes...
+  Bundling Remotion composition...
+  Opening Remotion headless browser...
+  Rendered 10/11
+  ✓ 05a_visual_manifest.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module5a_visual_generator","at":"2026-07-30T10:50:43.512Z"}
+→ module6_video_composer
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module6_video_composer","at":"2026-07-30T10:50:43.513Z"}
+  Video segments 10/11
+  Video segments 11/11
+  ✓ 06_video_manifest.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module6_video_composer","at":"2026-07-30T10:50:53.017Z"}

@@ -29,8 +29,8 @@ Kiểm thử local API, job runner, artifact serving và frontend bằng một P
 - Link tải MP4 và SRT trỏ tới artifact endpoint an toàn.
 - Không có console error hoặc page error trong phiên browser test.
 
-## Phần chưa hoàn thành
+## Phần hoàn thiện sau báo cáo này
 
-- Progress theo byte khi upload.
-- Feedback có cấu trúc.
-- Timeout/retry riêng cho từng module; hiện mới có timeout toàn pipeline.
+Upload progress, feedback và timeout/retry riêng từng module đã được bổ sung.
+Xem `eval/feedback-and-real-data-2026-07-30.md` và
+`eval/module-progress-resume-2026-07-30.md`.

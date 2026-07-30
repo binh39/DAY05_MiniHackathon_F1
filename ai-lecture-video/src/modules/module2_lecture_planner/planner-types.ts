@@ -5,6 +5,7 @@ export const treatmentSchema = z.enum([
   "MENTION",
   "SHOW",
   "REFERENCE",
+  "OUT_OF_SCOPE",
   "UNREADABLE",
   "DUPLICATE",
 ]);

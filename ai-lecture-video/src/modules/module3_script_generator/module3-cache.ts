@@ -10,7 +10,7 @@ import {
 } from "../../core/contracts.js";
 import { validateScript } from "./grounding-validator.js";
 
-const PROMPT_VERSION = "module3-v2";
+const PROMPT_VERSION = "module3-v3-duration-contract";
 
 export function createScriptCacheKey(
   document: DocumentArtifact,
@@ -27,6 +27,7 @@ export function createScriptCacheKey(
         language: config.language,
         audience: config.audience,
         detail_level: config.detail_level,
+        duration: config.duration,
         model,
         prompt_version: PROMPT_VERSION,
       }),

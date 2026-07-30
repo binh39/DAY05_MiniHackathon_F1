@@ -95,6 +95,16 @@ export function moduleProgress(states: ModuleStates): number {
   );
 }
 
+export function resolveModuleTimeout(
+  module: PipelineModuleId,
+  fallbackTimeoutMs?: number,
+  environment: NodeJS.ProcessEnv = process.env,
+): number {
+  const configured = Number(environment[MODULE_META[module].timeoutEnv]);
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  return fallbackTimeoutMs ?? MODULE_META[module].timeoutMs;
+}
+
 export function moduleStatesForRetry(
   states: ModuleStates | undefined,
   failedModule: PipelineModuleId,
@@ -119,20 +129,54 @@ export function moduleStatesForRetry(
 
 type DurationOption = JobRecord["fields"]["duration_option"];
 
-function durationConfig(option: DurationOption): Pick<
+export function durationConfig(option: DurationOption): Pick<
   PipelineConfig,
-  "coverage_mode" | "detail_level"
+  "coverage_mode" | "detail_level" | "duration"
 > {
   if (option === "0-1" || option === "1-3") {
-    return { coverage_mode: "SUMMARY", detail_level: "brief" };
+    return {
+      coverage_mode: "SUMMARY",
+      detail_level: "brief",
+      duration:
+        option === "0-1"
+          ? { option, min_seconds: 0, max_seconds: 60, target_seconds: 50 }
+          : { option, min_seconds: 60, max_seconds: 180, target_seconds: 145 },
+    };
   }
   if (option === "3-5") {
-    return { coverage_mode: "CONCISE", detail_level: "brief" };
+    return {
+      coverage_mode: "CONCISE",
+      detail_level: "brief",
+      duration: {
+        option,
+        min_seconds: 180,
+        max_seconds: 300,
+        target_seconds: 255,
+      },
+    };
   }
   if (option === "5-8") {
-    return { coverage_mode: "CONCISE", detail_level: "standard" };
+    return {
+      coverage_mode: "CONCISE",
+      detail_level: "standard",
+      duration: {
+        option,
+        min_seconds: 300,
+        max_seconds: 480,
+        target_seconds: 410,
+      },
+    };
   }
-  return { coverage_mode: "FULL", detail_level: "brief" };
+  return {
+    coverage_mode: "FULL",
+    detail_level: "brief",
+    duration: {
+      option,
+      min_seconds: 480,
+      max_seconds: 600,
+      target_seconds: 530,
+    },
+  };
 }
 
 function dimensions(aspectRatio: JobRecord["fields"]["aspect_ratio"]) {
@@ -147,6 +191,7 @@ function pipelineConfig(job: JobRecord, projectDirectory: string): PipelineConfi
     input_pdf: path.relative(projectDirectory, job.input_file),
     output_directory: "outputs",
     ...duration,
+    visual_style: job.fields.visual_style ?? "modern_minimal",
     audience: "beginner",
     language: job.fields.language,
     max_chapter_minutes: 8,
@@ -181,9 +226,7 @@ export class JobRunner {
   ) {}
 
   private timeoutFor(module: PipelineModuleId): number {
-    const configured = Number(process.env[MODULE_META[module].timeoutEnv]);
-    if (Number.isFinite(configured) && configured > 0) return configured;
-    return this.fallbackTimeoutMs ?? MODULE_META[module].timeoutMs;
+    return resolveModuleTimeout(module, this.fallbackTimeoutMs);
   }
 
   private clearActiveTimers(): void {
@@ -489,6 +532,7 @@ export class JobRunner {
       run_directory: runDirectory,
       warnings: manifest.warnings,
       result_duration_seconds: manifest.duration_seconds,
+      result_file_size_bytes: manifest.file_size_bytes,
       failed_module: undefined,
       resume_from: undefined,
       error: undefined,

@@ -142,7 +142,11 @@ function chapterPrompt(
   );
   const maximumChapterWords = Math.max(
     1,
-    Math.floor((chapter.duration_seconds / 60) * 125),
+    Math.floor((chapter.duration_seconds / 60) * 110),
+  );
+  const maximumNarrations = Math.max(
+    2,
+    Math.floor(chapter.duration_seconds / 12),
   );
   const prompt = `You are the Script Writer for a grounded PDF-to-lecture-video system.
 
@@ -161,12 +165,14 @@ Hard rules:
 - Do not infer facts beyond the supplied excerpts. Never cite a source merely because it is on the right page.
 - Every source with treatment EXPLAIN, MENTION, or SHOW must appear in at least one GROUNDED_CLAIM.
 - REFERENCE, UNREADABLE, and DUPLICATE sources must not be turned into unsupported teaching claims.
+- OUT_OF_SCOPE sources are intentionally excluded by the duration budget and must not appear in narration.
 - Use only source_ids and item_ids in this chapter.
 - Map each narration to all learning objectives it helps, using zero-based objective_indices.
 - The only valid objective_indices are ${chapter.learning_objectives.map((_, index) => index).join(", ")}.
 - Cover every objective. End with at least one LEARNING_CHECK.
 - Keep every narration at 90 words or fewer and do not cut a sentence.
 - The complete chapter must stay at or below ${maximumChapterWords} spoken words so it fits the planned ${chapter.duration_seconds} seconds. This is a hard upper bound, including transitions and the learning check.
+- Return at most ${maximumNarrations} narrations. Cite multiple compatible source_ids in one concise GROUNDED_CLAIM when needed.
 - Use short transition chunks suitable for later scene generation.
 - Use analogies/examples only when pedagogically useful and clearly introduce them as analogy/example.
 - Do not read slide bullets verbatim. Explain naturally.
@@ -257,6 +263,15 @@ function validateChapterDecision(
   ) {
     errors.push(
       `Tổng narration ${estimatedDurationSeconds}s vượt duration plan ${chapter.duration_seconds}s; hãy rút gọn nhưng vẫn giữ đủ source/objective.`,
+    );
+  }
+  const maximumNarrations = Math.max(
+    2,
+    Math.floor(chapter.duration_seconds / 12),
+  );
+  if (decision.narrations.length > maximumNarrations) {
+    errors.push(
+      `Chapter có ${decision.narrations.length} narration, vượt giới hạn ${maximumNarrations} của duration budget.`,
     );
   }
 

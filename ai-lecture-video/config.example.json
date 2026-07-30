@@ -5,6 +5,13 @@
   "audience": "beginner",
   "language": "vi",
   "detail_level": "standard",
+  "visual_style": "modern_minimal",
+  "duration": {
+    "option": "3-5",
+    "min_seconds": 180,
+    "max_seconds": 300,
+    "target_seconds": 255
+  },
   "max_chapter_minutes": 8,
   "limits": {
     "max_pdf_megabytes": 50,

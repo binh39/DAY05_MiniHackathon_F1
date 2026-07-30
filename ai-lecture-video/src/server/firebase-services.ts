@@ -14,6 +14,7 @@ export interface FirebaseServices {
   persistJob(job: JobRecord): Promise<void>;
   uploadInput(job: JobRecord): Promise<string>;
   uploadArtifacts(job: JobRecord): Promise<Record<string, string>>;
+  deleteJob?(job: JobRecord): Promise<void>;
 }
 
 type FirestoreValue =
@@ -80,6 +81,8 @@ function cloudJob(job: JobRecord): Record<string, unknown> {
     outline_draft: job.outline_draft,
     document_pages: job.document_pages,
     result_duration_seconds: job.result_duration_seconds,
+    result_file_size_bytes: job.result_file_size_bytes,
+    quota_reserved_seconds: job.quota_reserved_seconds,
     feedback: job.feedback,
     modules: job.modules,
     failed_module: job.failed_module,
@@ -203,6 +206,45 @@ export function createFirebaseServices(options: {
           ]),
         ),
       );
+    },
+
+    async deleteJob(job) {
+      const client = await auth.getClient();
+      const prefix = `users/${job.owner_uid}/jobs/${job.id}/`;
+      let pageToken: string | undefined;
+      do {
+        const response = await client.request<{
+          items?: Array<{ name: string }>;
+          nextPageToken?: string;
+        }>({
+          url: `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(options.storageBucket)}/o`,
+          method: "GET",
+          params: { prefix, pageToken },
+        });
+        for (const item of response.data.items ?? []) {
+          await client
+            .request({
+              url:
+                `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(options.storageBucket)}` +
+                `/o/${encodeURIComponent(item.name)}`,
+              method: "DELETE",
+            })
+            .catch((error: { response?: { status?: number } }) => {
+              if (error.response?.status !== 404) throw error;
+            });
+        }
+        pageToken = response.data.nextPageToken;
+      } while (pageToken);
+      await client
+        .request({
+          url:
+            `https://firestore.googleapis.com/v1/projects/${options.projectId}` +
+            `/databases/(default)/documents/jobs/${job.id}`,
+          method: "DELETE",
+        })
+        .catch((error: { response?: { status?: number } }) => {
+          if (error.response?.status !== 404) throw error;
+        });
     },
   };
 }

@@ -6,6 +6,7 @@ import {
   List,
   Plus,
   Search,
+  Trash2,
   Upload,
   Video,
   X,
@@ -15,10 +16,29 @@ import { useLibrary } from "../contexts";
 import { useNavigate } from "../router";
 
 export function DocumentsPage() {
-  const { documents, videos } = useLibrary();
+  const { documents, videos, deleteLibraryJob } = useLibrary();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [deleteError, setDeleteError] = useState("");
+
+  async function removeDocument(jobId: string, name: string) {
+    if (
+      !window.confirm(
+        `Xóa "${name}" cùng video và toàn bộ artifact liên quan? Hành động này không thể hoàn tác.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      setDeleteError("");
+      await deleteLibraryJob(jobId);
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "Không thể xóa tài liệu.",
+      );
+    }
+  }
 
   const filtered = useMemo(
     () =>
@@ -27,18 +47,10 @@ export function DocumentsPage() {
       ),
     [documents, query],
   );
-  const uploadedMegabytes = documents.reduce(
-    (total, document) => total + document.sizeBytes,
-    0,
-  ) / 1024 / 1024;
-
   return (
     <div className="library-page page-enter">
       <div className="page-heading library-heading">
         <div>
-          <div className="eyebrow">
-            <FileText size={16} /> Thư viện
-          </div>
           <h1>Tài liệu của tôi</h1>
           <p>Quản lý các tài liệu bạn đã tải lên hệ thống.</p>
         </div>
@@ -47,54 +59,48 @@ export function DocumentsPage() {
         </button>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <span className="stat-icon purple"><FileText size={20} /></span>
+      <div className="video-summary-banner unified-library-bar">
+        <div>
+          <span className="summary-badge"><FileText size={19} /></span>
           <div><strong>{documents.length}</strong><span>Tổng tài liệu</span></div>
         </div>
-        <div className="stat-card">
-          <span className="stat-icon mint"><Video size={20} /></span>
+        <div>
+          <span className="summary-badge mint"><Video size={19} /></span>
           <div>
             <strong>{videos.filter((video) => video.status === "ready").length}</strong>
             <span>Video đã tạo</span>
           </div>
         </div>
-        <div className="stat-card wide-stat">
-          <div className="storage-row">
-            <span>Dung lượng PDF đã tải</span>
-            <strong>{uploadedMegabytes.toFixed(1).replace(".", ",")} MB</strong>
+        <div className="library-toolbar unified-library-toolbar">
+          <label className="search-box">
+            <Search size={19} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Tìm kiếm tài liệu..."
+            />
+            {query && (
+              <button onClick={() => setQuery("")} aria-label="Xóa tìm kiếm">
+                <X size={17} />
+              </button>
+            )}
+          </label>
+          <button className="toolbar-button"><Filter size={18} /> Bộ lọc</button>
+          <div className="view-toggle">
+            <button
+              className={view === "grid" ? "active" : ""}
+              onClick={() => setView("grid")}
+              aria-label="Dạng lưới"
+            ><Grid2X2 size={18} /></button>
+            <button
+              className={view === "list" ? "active" : ""}
+              onClick={() => setView("list")}
+              aria-label="Dạng danh sách"
+            ><List size={19} /></button>
           </div>
         </div>
       </div>
-
-      <div className="library-toolbar">
-        <label className="search-box">
-          <Search size={19} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm kiếm tài liệu..."
-          />
-          {query && (
-            <button onClick={() => setQuery("")} aria-label="Xóa tìm kiếm">
-              <X size={17} />
-            </button>
-          )}
-        </label>
-        <button className="toolbar-button"><Filter size={18} /> Bộ lọc</button>
-        <div className="view-toggle">
-          <button
-            className={view === "grid" ? "active" : ""}
-            onClick={() => setView("grid")}
-            aria-label="Dạng lưới"
-          ><Grid2X2 size={18} /></button>
-          <button
-            className={view === "list" ? "active" : ""}
-            onClick={() => setView("list")}
-            aria-label="Dạng danh sách"
-          ><List size={19} /></button>
-        </div>
-      </div>
+      {deleteError && <p className="library-error">{deleteError}</p>}
 
       {filtered.length ? (
         <div className={`document-collection ${view}`}>
@@ -119,9 +125,21 @@ export function DocumentsPage() {
                     {document.status === "ready" ? "Sẵn sàng" : "Đang phân tích"}
                   </span>
                 </div>
-                <button className="document-action" onClick={() => navigate("/app/create")}>
-                  Tạo video từ tài liệu <ArrowUpRight size={16} />
-                </button>
+                <div className="document-card-actions">
+                  <button className="document-action" onClick={() => navigate("/app/create")}>
+                    Tạo video từ tài liệu <ArrowUpRight size={16} />
+                  </button>
+                  {document.jobId && document.status === "ready" && (
+                    <button
+                      className="delete-library-button"
+                      onClick={() => void removeDocument(document.jobId!, document.name)}
+                      aria-label={`Xóa ${document.name}`}
+                      title="Xóa job và toàn bộ artifact"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           ))}

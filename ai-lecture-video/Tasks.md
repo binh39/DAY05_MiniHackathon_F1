@@ -89,14 +89,16 @@ Module 5A và 5B có thể phát triển song song sau khi contract storyboard �
 
 ### T0.2 — Chốt ba chế độ coverage `[P0]`
 
-- `FULL`: bao phủ toàn bộ nội dung có ý nghĩa; thời lượng được suy ra.
+- `FULL`: bao phủ tối đa nội dung có ý nghĩa trong duration contract đã chọn.
 - `CONCISE`: giữ ý chính, rút ngắn ví dụ phụ.
 - `SUMMARY`: chỉ trình bày insight và kết luận.
-- MVP chỉ cần chạy tốt `FULL`; hai chế độ còn lại có thể khóa trên UI.
+- Web app ánh xạ option ngắn sang `SUMMARY`/`CONCISE` và option 8–10 phút sang
+  `FULL`.
 
 **Acceptance criteria**
 
-- Không dùng `target_duration` để ép Full Lecture vào thời lượng bất khả thi.
+- `target_duration` là ngân sách bắt buộc. Nội dung không thể dạy an toàn trong
+  ngân sách phải được đánh dấu `OUT_OF_SCOPE`, không nhồi hoặc cắt ngang video.
 - Mỗi nội dung đều có treatment và lý do xử lý.
 
 ### T0.3 — Chuẩn bị golden document set `[P0]`
@@ -136,8 +138,9 @@ Với mỗi PDF, ghi:
 - CLI `inspect` và `run`.
 - Module 5A/5B chạy song song.
 
-**Trạng thái:** Đã hoàn thành skeleton; pipeline thật hiện chạy end-to-end qua
-Module 1–6 và tạo MP4, SRT cùng coverage report.
+**Trạng thái:** Pipeline thật chạy end-to-end qua Module 1–6, phát structured
+module event và tạo MP4, SRT cùng coverage report. Job metadata lưu trạng thái,
+thời gian và lỗi riêng cho 1, 2, 3, 4, 5A, 5B và 6.
 
 ### T1.2 — Run manifest và trạng thái job `[P0]`
 
@@ -657,7 +660,8 @@ Firebase Auth đã bảo vệ API; job có owner và được mirror sang Firest
 và artifact được mirror sang Storage tại `asia-southeast1`. Pipeline hiện dừng
 sau Module 2 ở `AWAITING_APPROVAL`; user có thể xem document analysis, sửa
 title/objective/thứ tự/mức chi tiết chapter rồi approve để tiếp tục Module 3–6
-trong cùng run. Timeout hiện vẫn áp dụng cho toàn pipeline.
+trong cùng run. Mỗi module có timeout riêng; khi lỗi, retry giữ nguyên run và
+bắt đầu lại đúng module, kể cả retry độc lập nhánh 5A/5B.
 
 ### T8.1 — API upload và tạo job `[P0]`
 
@@ -704,7 +708,8 @@ trong cùng run. Timeout hiện vẫn áp dụng cho toàn pipeline.
 **Trạng thái: luồng P0, outline review, result navigation và feedback đã nối backend thật.** Người dùng có thể upload
 PDF, chọn tỉ lệ/thời lượng/ngôn ngữ/voice, theo dõi trạng thái, cancel/retry, xem
 video và tải MP4/SRT. Đăng nhập, đăng ký, giữ phiên và reset password đã dùng
-Firebase Authentication thật. Result player đã có chapter navigation theo timestamp,
+Firebase Authentication thật. Upload hiển thị byte progress thật; processing card
+hiển thị trạng thái từng module và 5A/5B song song. Result player đã có chapter navigation theo timestamp,
 coverage summary, đối chiếu trang nguồn PDF và form feedback lưu thật theo user/job.
 UI không còn seed/mock document hoặc video.
 
@@ -829,12 +834,22 @@ So sánh:
 - Xóa cả artifact trung gian.
 - Không dùng tài liệu để huấn luyện ngoài cam kết provider.
 
+**Đã hoàn thiện:** `DELETE /api/jobs/:id` kiểm tra owner, không cho xóa job
+`QUEUED/RUNNING`, xóa PDF, run directory, metadata, Firestore document và toàn
+bộ Storage prefix của job. Retention chạy khi backend khởi động, chỉ áp dụng cho
+job terminal và được bật bằng `JOB_RETENTION_DAYS`.
+
 ### T11.5 — Cost và quota `[P1]`
 
 - Giới hạn số trang.
 - Ước tính chi phí trước khi chạy.
 - Theo dõi token/TTS/render.
 - Rate limit theo user.
+
+**Đã hoàn thiện guardrail MVP:** `GET /api/quota` và kiểm tra trước khi tạo job
+theo user cho số job active, số job lưu, dung lượng và phút video theo tháng.
+Thời lượng tối đa của option được reserve khi job được tạo; giới hạn cấu hình
+bằng các biến `USER_MAX_*` và `USER_MONTHLY_VIDEO_MINUTES`.
 
 ---
 

@@ -1,0 +1,46 @@
+
+> ai-lecture-video@0.1.0 run
+> tsx src/cli.ts run eval/config-duration-1-3-smoke.json
+
+→ module3_script_generator
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module3_script_generator","at":"2026-07-30T10:46:49.871Z"}
+  Vertex model=gemini-3.5-flash, chapters=3
+  Script chap_01 attempt=1/3
+  Script chap_02 attempt=1/3
+  Script chap_03 attempt=1/3
+  Semantic review=1/2
+  Repair grounded narrations in: chap_03
+  Script chap_03 attempt=1/3
+  Semantic review=2/2
+  Script latency_ms=96828
+  ✓ 03_script.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module3_script_generator","at":"2026-07-30T10:48:26.723Z"}
+→ module4_storyboard_generator
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module4_storyboard_generator","at":"2026-07-30T10:48:26.724Z"}
+  Vertex model=gemini-3.5-flash, chapters=3
+  Storyboard chap_01 attempt=1/3
+  Storyboard chap_02 attempt=1/3
+  Storyboard chap_03 attempt=1/3
+  Storyboard latency_ms=33212
+  ✓ 04_storyboard.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module4_storyboard_generator","at":"2026-07-30T10:48:59.953Z"}
+→ module5a_visual_generator
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module5a_visual_generator","at":"2026-07-30T10:48:59.954Z"}
+→ module5b_voice_generator
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module5b_voice_generator","at":"2026-07-30T10:48:59.955Z"}
+  Rendering 11/11 visual scenes...
+  Bundling Remotion composition...
+  Opening Remotion headless browser...
+  Voice scenes 10/11
+  Voice scenes 11/11
+  ✓ 05b_voice_manifest.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module5b_voice_generator","at":"2026-07-30T10:49:04.764Z"}
+  Rendered 10/11
+  ✓ 05a_visual_manifest.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module5a_visual_generator","at":"2026-07-30T10:49:11.246Z"}
+→ module6_video_composer
+PIPELINE_EVENT:{"type":"MODULE_STARTED","module":"module6_video_composer","at":"2026-07-30T10:49:11.246Z"}
+  Video segments 10/11
+  Video segments 11/11
+  ✓ 06_video_manifest.json
+PIPELINE_EVENT:{"type":"MODULE_COMPLETED","module":"module6_video_composer","at":"2026-07-30T10:49:21.480Z"}

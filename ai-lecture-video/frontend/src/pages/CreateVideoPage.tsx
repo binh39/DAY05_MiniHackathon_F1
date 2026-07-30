@@ -16,13 +16,19 @@ import {
 } from "lucide-react";
 import {
   useRef,
+  useEffect,
   useState,
   type DragEvent,
   type FormEvent,
 } from "react";
 import { useLibrary } from "../contexts";
 import { useNavigate } from "../router";
-import type { AspectRatio, DurationOption } from "../types";
+import type {
+  AspectRatio,
+  DurationOption,
+  LanguageCode,
+  VisualStyle,
+} from "../types";
 
 const durations: DurationOption[] = [
   "0–1 phút",
@@ -43,20 +49,48 @@ const ratios: Array<{
   { value: "1:1", label: "Vuông", hint: "Mạng xã hội", icon: Square },
 ];
 
+const languageLabels: Record<LanguageCode, string> = {
+  vi: "Tiếng Việt",
+  en: "English",
+};
+
+const voices: Record<LanguageCode, Array<{ id: string; label: string }>> = {
+  vi: [
+    { id: "vi-VN-Neural2-A", label: "Giọng nữ · Tự nhiên" },
+    { id: "vi-VN-Neural2-D", label: "Giọng nam · Trầm ấm" },
+  ],
+  en: [
+    { id: "en-US-Neural2-F", label: "Female · Natural" },
+    { id: "en-US-Neural2-D", label: "Male · Warm" },
+    { id: "en-US-Neural2-H", label: "Female · Energetic" },
+  ],
+};
+
+const visualStyles: Array<{ id: VisualStyle; label: string }> = [
+  { id: "modern_minimal", label: "Hiện đại & tối giản" },
+  { id: "academic", label: "Học thuật" },
+  { id: "dynamic", label: "Năng động" },
+];
+
 export function CreateVideoPage() {
-  const { createVideo } = useLibrary();
+  const { createVideo, quota, refreshQuota } = useLibrary();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [ratio, setRatio] = useState<AspectRatio>("16:9");
   const [duration, setDuration] = useState<DurationOption>("5–8 phút");
-  const [language, setLanguage] = useState("Tiếng Việt");
-  const [voice, setVoice] = useState("Giọng nữ · Tự nhiên");
-  const [style, setStyle] = useState("Hiện đại & tối giản");
+  const [language, setLanguage] = useState<LanguageCode>("vi");
+  const [voiceId, setVoiceId] = useState("vi-VN-Neural2-A");
+  const [style, setStyle] = useState<VisualStyle>("modern_minimal");
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  useEffect(() => {
+    void refreshQuota().catch(() => undefined);
+  }, []);
 
   function acceptFile(nextFile?: File) {
     if (!nextFile) return;
@@ -89,8 +123,20 @@ export function CreateVideoPage() {
       return;
     }
     setSubmitting(true);
+    setUploadProgress(0);
     try {
-      await createVideo({ file, title, ratio, duration });
+      await createVideo({
+        file,
+        title,
+        ratio,
+        duration,
+        language,
+        voiceId,
+        visualStyle: style,
+        onUploadProgress: setUploadProgress,
+      });
+      setUploadProgress(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
       navigate("/app/videos", { state: { created: true } });
     } catch (submitError) {
       setError(
@@ -249,9 +295,16 @@ export function CreateVideoPage() {
               <label>
                 Ngôn ngữ
                 <span className="select-wrap">
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-                    <option>Tiếng Việt</option>
-                    <option>English</option>
+                  <select
+                    value={language}
+                    onChange={(event) => {
+                      const nextLanguage = event.target.value as LanguageCode;
+                      setLanguage(nextLanguage);
+                      setVoiceId(voices[nextLanguage][0]!.id);
+                    }}
+                  >
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English</option>
                   </select>
                   <ChevronDown size={17} />
                 </span>
@@ -259,10 +312,12 @@ export function CreateVideoPage() {
               <label>
                 Giọng đọc
                 <span className="select-wrap">
-                  <select value={voice} onChange={(e) => setVoice(e.target.value)}>
-                    <option>Giọng nữ · Tự nhiên</option>
-                    <option>Giọng nam · Trầm ấm</option>
-                    <option>Giọng nữ · Năng động</option>
+                  <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+                    {voices[language].map((voice) => (
+                      <option value={voice.id} key={voice.id}>
+                        {voice.label}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown size={17} />
                 </span>
@@ -271,16 +326,16 @@ export function CreateVideoPage() {
             <div className="field-group">
               <label>Phong cách hình ảnh</label>
               <div className="style-options">
-                {["Hiện đại & tối giản", "Học thuật", "Năng động"].map((item) => (
+                {visualStyles.map((item) => (
                   <button
                     type="button"
-                    key={item}
-                    onClick={() => setStyle(item)}
-                    className={style === item ? "selected" : ""}
+                    key={item.id}
+                    onClick={() => setStyle(item.id)}
+                    className={style === item.id ? "selected" : ""}
                   >
                     <LayoutTemplate size={19} />
-                    {item}
-                    {style === item && <Check size={15} />}
+                    {item.label}
+                    {style === item.id && <Check size={15} />}
                   </button>
                 ))}
               </div>
@@ -294,6 +349,22 @@ export function CreateVideoPage() {
               <Sparkles size={22} />
             </div>
             <h3>Tóm tắt thiết lập</h3>
+            {quota && (
+              <div className="quota-summary" aria-label="Hạn mức tài khoản">
+                <strong>Hạn mức còn lại</strong>
+                <span>
+                  {Math.floor(quota.remaining.monthly_video_seconds / 60)} phút video
+                  {" · "}{quota.remaining.active_jobs} lượt xử lý
+                </span>
+                <span>
+                  {(quota.remaining.storage_bytes / 1024 / 1024).toFixed(0)} MB
+                  {" · "}{quota.remaining.stored_jobs} job lưu trữ
+                </span>
+                {quota.retention_days > 0 && (
+                  <small>Dữ liệu hoàn tất được giữ {quota.retention_days} ngày.</small>
+                )}
+              </div>
+            )}
             <div className="summary-list">
               <div>
                 <span>Tài liệu</span>
@@ -309,11 +380,13 @@ export function CreateVideoPage() {
               </div>
               <div>
                 <span>Ngôn ngữ</span>
-                <strong>{language}</strong>
+                <strong>{languageLabels[language]}</strong>
               </div>
               <div>
                 <span>Giọng đọc</span>
-                <strong>{voice.split(" · ")[0]}</strong>
+                <strong>
+                  {voices[language].find((voice) => voice.id === voiceId)?.label}
+                </strong>
               </div>
             </div>
             <div className="estimate-box">
@@ -325,11 +398,23 @@ export function CreateVideoPage() {
             </div>
             <button className="primary-button create-submit" disabled={submitting}>
               {submitting ? (
-                <><span className="spinner" /> Đang khởi tạo...</>
+                <>
+                  <span className="spinner" /> Đang tải PDF {uploadProgress}%
+                </>
               ) : (
                 <>Phân tích và tạo outline <ArrowRight size={18} /></>
               )}
             </button>
+            {submitting && (
+              <div className="upload-progress-live" aria-live="polite">
+                <div>
+                  <span style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <small>
+                  Đã gửi {uploadProgress}% dữ liệu tới backend
+                </small>
+              </div>
+            )}
             <p className="summary-note">
               <Check size={15} /> Video chỉ được render sau khi bạn duyệt outline.
             </p>

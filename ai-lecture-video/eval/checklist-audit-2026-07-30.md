@@ -10,7 +10,7 @@ Audit đối chiếu `Checklist.md` và `Tasks.md` với:
 - evaluation của `Lecture-02-Process.pdf`;
 - kết quả `npm run typecheck`, `npm test`, `npm run inspect`.
 
-Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-end exit 0.
+Kết quả kiểm tra lại: typecheck pass, 55/55 test pass, pipeline end-to-end exit 0.
 
 ## Phần đã xác minh
 
@@ -20,7 +20,8 @@ Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-e
   động.
 - Module 5A/5B chạy song song; Module 6 compose MP4/SRT/coverage và pipeline
   hoàn tất với exit code 0.
-- Module 1–6 có cache riêng; chưa có resume orchestration từ module tùy ý.
+- Module 1–6 có cache riêng và resume orchestration từ module lỗi; nhánh 5A/5B
+  có thể giữ lại artifact của nhánh đã hoàn tất.
 - Local job state machine lưu bền trạng thái và đánh dấu job đang chạy là
   interrupted nếu backend khởi động lại.
 
@@ -28,7 +29,7 @@ Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-e
 
 - Fastify API kiểm tra upload PDF, tạo/lưu job và chạy pipeline ngoài request với
   concurrency 1.
-- Có status/progress, cancel/retry và timeout toàn pipeline.
+- Có structured module status/progress, cancel/retry và timeout riêng từng module.
 - Artifact endpoint chỉ cho phép MP4, SRT, coverage JSON và thumbnail nằm trong
   run directory hợp lệ.
 - Frontend đã nối API thật để upload, poll job, cancel/retry, xem video và tải
@@ -39,7 +40,16 @@ Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-e
   deploy và live test xác minh owner isolation/unauthenticated deny.
 - Pipeline web đã pause sau Module 2, có preview/edit/approve và resume Module
   3–6 trong cùng run. Browser QA không có console/page error.
-- Chưa có timeout từng module.
+- Upload có byte progress thật; UI hiển thị 5A/5B song song.
+- Duration option là contract xuyên Module 2–6. E2E thật với PDF 45 trang,
+  option 1–3 phút tạo plan 145s và MP4 75,82s; xem
+  `eval/duration-contract-1-3-e2e-2026-07-30.md`.
+- Language, Google voice ID và visual style được gửi thật từ frontend; backend
+  từ chối voice không tương thích ngôn ngữ.
+- Quota được tính riêng theo owner cho job active, số job lưu, dung lượng và phút
+  video theo tháng; API trả `429` trước khi tạo job vượt hạn mức.
+- Delete API kiểm tra owner, từ chối job đang chạy và xóa local/Firestore/Storage.
+  Retention chỉ dọn job terminal quá hạn; automated test xác minh job active được giữ.
 
 ### Module 1
 
@@ -121,7 +131,7 @@ Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-e
 - Bỏ tick `Golden evaluation Module 3`.
 - Đổi thành `Representative evaluation` cho Module 1–3.
 - Hạ PDF corrupt/password-protected thành Partial do thiếu encrypted fixture.
-- Ghi rõ Module 1–6 có cache riêng, nhưng chưa có resume orchestration toàn pipeline.
+- Sau audit ban đầu, đã bổ sung resume orchestration và retry đúng module lỗi.
 - Ghi rõ prompt-injection protection mới ở mức prompt/schema, chưa có
   adversarial test.
 - Đổi trạng thái Phase 3–4 trong `Tasks.md` thành core backend, không tuyên bố
@@ -135,5 +145,5 @@ Productization và validation:
 2. Bổ sung animation nội cảnh hoặc transition nếu user test cho thấy slide tĩnh
    làm giảm khả năng theo dõi.
 3. Chạy đủ golden PDF set.
-4. Bổ sung progress/timeout riêng theo module và upload progress thật.
+4. Bổ sung quota theo user và xóa toàn bộ job/artifact an toàn.
 5. Thêm quota theo user, xóa toàn bộ job artifact và App Check.

@@ -27,6 +27,13 @@ const config: PipelineConfig = {
   audience: "beginner",
   language: "vi",
   detail_level: "standard",
+  visual_style: "modern_minimal",
+  duration: {
+    option: "8-10",
+    min_seconds: 0,
+    max_seconds: 1800,
+    target_seconds: 540,
+  },
   max_chapter_minutes: 8,
   limits: { max_pdf_megabytes: 50, max_pdf_pages: 80 },
   voice: {
@@ -164,6 +171,10 @@ test("visual cache key ignores run-specific image paths", () => {
   assert.equal(
     createVisualCacheKey(scene, document, 1920, 1080),
     createVisualCacheKey(moved, document, 1920, 1080),
+  );
+  assert.notEqual(
+    createVisualCacheKey(scene, document, 1920, 1080, "modern_minimal"),
+    createVisualCacheKey(scene, document, 1920, 1080, "academic"),
   );
 });
 

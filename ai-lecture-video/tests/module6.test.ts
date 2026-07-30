@@ -32,6 +32,13 @@ const config: PipelineConfig = {
   audience: "beginner",
   language: "vi",
   detail_level: "standard",
+  visual_style: "modern_minimal",
+  duration: {
+    option: "8-10",
+    min_seconds: 0,
+    max_seconds: 1800,
+    target_seconds: 540,
+  },
   max_chapter_minutes: 8,
   limits: { max_pdf_megabytes: 50, max_pdf_pages: 80 },
   voice: {
@@ -301,6 +308,27 @@ test("composes and probes a real H.264/AAC MP4, then reuses segment cache", asyn
     path.join(projectDirectory, "runs", "second"),
   );
   assert.equal(second.video_sha256, first.video_sha256);
+
+  await assert.rejects(
+    composeVideo(
+      {
+        ...config,
+        duration: {
+          option: "0-1",
+          min_seconds: 0,
+          max_seconds: 0.5,
+          target_seconds: 0.4,
+        },
+      },
+      lecturePlan,
+      storyboard,
+      visuals,
+      voices,
+      projectDirectory,
+      path.join(projectDirectory, "runs", "duration-blocked"),
+    ),
+    /DURATION_OUT_OF_RANGE/,
+  );
 
   const failedVoices = structuredClone(voices);
   failedVoices.scenes[0]!.status = "FAILED";

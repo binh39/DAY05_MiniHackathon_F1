@@ -81,6 +81,7 @@ async function renderSegment(
   audioPath: string,
   outputPath: string,
   durationSeconds: number,
+  audioTempo: number,
   config: PipelineConfig,
 ): Promise<void> {
   let lastError: unknown;
@@ -99,7 +100,7 @@ async function renderSegment(
           "-i",
           audioPath,
           "-af",
-          "apad",
+          `${Math.abs(audioTempo - 1) > 0.001 ? `atempo=${audioTempo.toFixed(6)},` : ""}apad`,
           "-t",
           durationSeconds.toFixed(6),
           "-c:v",
@@ -144,7 +145,55 @@ export async function composeVideo(
   runDirectory: string,
 ): Promise<VideoManifest> {
   validateInputs(storyboard, visuals, voices);
-  const timeline = buildTimeline(storyboard, voices, config.render.fps);
+  const rawTimeline = buildTimeline(storyboard, voices, config.render.fps);
+  const outsideRange =
+    rawTimeline.durationSeconds < config.duration.min_seconds ||
+    rawTimeline.durationSeconds > config.duration.max_seconds;
+  const desiredDuration = outsideRange
+    ? config.duration.target_seconds
+    : rawTimeline.durationSeconds;
+  const fixedGapSeconds = rawTimeline.scenes.reduce(
+    (total, scene) => total + scene.gapSeconds,
+    0,
+  );
+  const desiredVoiceSeconds = desiredDuration - fixedGapSeconds;
+  if (desiredVoiceSeconds <= 0) {
+    throw new Error(
+      "DURATION_OUT_OF_RANGE: khoảng nghỉ chapter đã vượt toàn bộ duration budget.",
+    );
+  }
+  const audioTempo =
+    (rawTimeline.durationSeconds - fixedGapSeconds) / desiredVoiceSeconds;
+  if (outsideRange && (audioTempo < 0.8 || audioTempo > 1.25)) {
+    throw new Error(
+      `DURATION_OUT_OF_RANGE: audio thực tế ${rawTimeline.durationSeconds.toFixed(2)}s, yêu cầu ${config.duration.min_seconds}-${config.duration.max_seconds}s. Độ lệch quá lớn để hiệu chỉnh tốc độ đọc an toàn.`,
+    );
+  }
+  const adjustedVoices: VoiceManifest =
+    Math.abs(audioTempo - 1) > 0.001
+      ? {
+          ...voices,
+          total_duration_seconds:
+            voices.total_duration_seconds / audioTempo,
+          scenes: voices.scenes.map((scene) => ({
+            ...scene,
+            duration_seconds: scene.duration_seconds / audioTempo,
+          })),
+        }
+      : voices;
+  const timeline = buildTimeline(
+    storyboard,
+    adjustedVoices,
+    config.render.fps,
+  );
+  if (
+    timeline.durationSeconds < config.duration.min_seconds ||
+    timeline.durationSeconds > config.duration.max_seconds
+  ) {
+    throw new Error(
+      `DURATION_OUT_OF_RANGE: audio/video thực tế ${timeline.durationSeconds.toFixed(2)}s, yêu cầu ${config.duration.min_seconds}-${config.duration.max_seconds}s. Cần tạo lại script/TTS ngắn hơn hoặc dài hơn trước khi compose.`,
+    );
+  }
   const cues = buildSubtitleCues(timeline);
   validateSubtitleCues(cues, timeline.durationSeconds);
   validateTimeline(timeline, cues);
@@ -203,6 +252,7 @@ export async function composeVideo(
         resolveProjectAsset(projectDirectory, voice.audio_path),
         outputPath,
         scene.durationSeconds,
+        audioTempo,
         config,
       );
       const probe = await probeMedia(outputPath);
@@ -303,9 +353,15 @@ export async function composeVideo(
     chapter_timestamps: timeline.chapterTimestamps,
     coverage_report_path: path.relative(projectDirectory, coveragePath),
     coverage_report_sha256: await checksum(coveragePath),
-    warnings:
-      warningCount > 0
+    warnings: [
+      ...(warningCount > 0
         ? [`Có ${warningCount} visual/voice scene ở trạng thái WARNING.`]
-        : [],
+        : []),
+      ...(Math.abs(audioTempo - 1) > 0.001
+        ? [
+            `Đã hiệu chỉnh tốc độ audio ${audioTempo.toFixed(3)}x để giữ video trong khoảng ${config.duration.min_seconds}-${config.duration.max_seconds}s.`,
+          ]
+        : []),
+    ],
   };
 }
