@@ -21,6 +21,7 @@ import {
   clearArtifactCache,
   createJob,
   deleteJob,
+  deleteVideo as deleteVideoRequest,
   getQuota,
   listJobs,
   retryJob,
@@ -147,6 +148,7 @@ interface LibraryContextValue {
   retryVideo: (jobId: string) => Promise<void>;
   cancelVideo: (jobId: string) => Promise<void>;
   deleteLibraryJob: (jobId: string) => Promise<void>;
+  deleteVideo: (jobId: string) => Promise<void>;
   quota: UserQuota | null;
   refreshQuota: () => Promise<void>;
 }
@@ -330,6 +332,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setQuota(await getQuota());
   }
 
+  async function deleteVideo(jobId: string) {
+    await deleteVideoRequest(jobId);
+    clearArtifactCache();
+    await mergeApiJobs(await listJobs());
+    setQuota(await getQuota());
+  }
+
   async function refreshQuota() {
     setQuota(await getQuota());
   }
@@ -343,6 +352,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       retryVideo,
       cancelVideo,
       deleteLibraryJob,
+      deleteVideo,
       quota,
       refreshQuota,
     }),

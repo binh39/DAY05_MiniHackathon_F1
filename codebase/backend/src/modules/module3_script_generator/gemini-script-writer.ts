@@ -12,6 +12,13 @@ import { canonicalizeSourceId } from "../module1_document_intelligence/gemini-do
 import { validateScript } from "./grounding-validator.js";
 import { buildScriptArtifact } from "./script-builder.js";
 import {
+  chapterWordBudget,
+  countSpokenWords,
+  estimateSpokenDurationSeconds,
+  SCRIPT_DURATION_TOLERANCE_RATE,
+  tolerantChapterWordBudget,
+} from "./duration-budget.js";
+import {
   chapterScriptDecisionSchema,
   semanticReviewSchema,
   type ChapterScriptDecision,
@@ -136,21 +143,13 @@ function chapterPrompt(
   const chapterIndex = lecturePlan.chapters.findIndex(
     (candidate) => candidate.chapter_id === chapter.chapter_id,
   );
-  const targetWords = chapter.items.reduce(
-    (total, item) => total + item.estimated_narration_words,
-    0,
-  );
-  const maximumChapterWords = Math.max(
-    1,
-    Math.floor((chapter.duration_seconds / 60) * 110),
-  );
-  const minimumChapterWords = Math.max(
-    1,
-    Math.floor(Math.min(targetWords, maximumChapterWords) * 0.82),
-  );
+  const wordBudget = chapterWordBudget(chapter.duration_seconds);
+  const targetWords = wordBudget.target;
+  const maximumChapterWords = wordBudget.maximum;
+  const minimumChapterWords = wordBudget.minimum;
   const maximumNarrations = Math.max(
     2,
-    Math.floor(chapter.duration_seconds / 12),
+    Math.ceil(chapter.duration_seconds / 12),
   );
   const prompt = `You are the Script Writer for a grounded PDF-to-lecture-video system.
 
@@ -252,37 +251,34 @@ function validateChapterDecision(
   const objectiveIndices = new Set<number>();
   const narrationIds = new Set<string>();
   const totalNarrationWords = decision.narrations.reduce(
-    (total, narration) =>
-      total + narration.text.trim().split(/\s+/u).filter(Boolean).length,
+    (total, narration) => total + countSpokenWords(narration.text),
     0,
   );
-  const targetWords = chapter.items.reduce(
-    (total, item) => total + item.estimated_narration_words,
-    0,
+  const wordBudget = tolerantChapterWordBudget(
+    chapter.duration_seconds,
   );
-  const maximumChapterWords = Math.max(
-    1,
-    Math.floor((chapter.duration_seconds / 60) * 110),
-  );
-  const minimumChapterWords = Math.max(
-    1,
-    Math.floor(Math.min(targetWords, maximumChapterWords) * 0.82),
-  );
+  const maximumChapterWords = wordBudget.maximum;
+  const minimumChapterWords = wordBudget.minimum;
   if (totalNarrationWords < minimumChapterWords) {
     errors.push(
       `Tổng narration chỉ có ${totalNarrationWords} từ, thấp hơn tối thiểu ${minimumChapterWords} từ của duration budget; hãy giải thích đầy đủ hơn mà không thêm fact ngoài nguồn.`,
     );
   }
+  if (totalNarrationWords > maximumChapterWords) {
+    errors.push(
+      `Tổng narration có ${totalNarrationWords} từ, vượt tối đa ${maximumChapterWords} từ của duration budget; hãy rút gọn mà vẫn giữ đủ source/objective.`,
+    );
+  }
   const estimatedDurationSeconds = decision.narrations.reduce(
-    (total, narration) => {
-      const words = narration.text.trim().split(/\s+/u).filter(Boolean).length;
-      return total + Math.max(3, Math.ceil((words / 125) * 60));
-    },
+    (total, narration) =>
+      total + estimateSpokenDurationSeconds(narration.text),
     0,
   );
   const durationToleranceSeconds = Math.max(
-    2,
-    Math.ceil(chapter.duration_seconds * 0.05),
+    3,
+    Math.ceil(
+      chapter.duration_seconds * SCRIPT_DURATION_TOLERANCE_RATE,
+    ),
   );
   if (
     estimatedDurationSeconds >
@@ -294,7 +290,7 @@ function validateChapterDecision(
   }
   const maximumNarrations = Math.max(
     2,
-    Math.floor(chapter.duration_seconds / 12),
+    Math.ceil(chapter.duration_seconds / 12),
   );
   if (decision.narrations.length > maximumNarrations) {
     errors.push(

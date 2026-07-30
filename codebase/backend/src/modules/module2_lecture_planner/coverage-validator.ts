@@ -4,6 +4,7 @@ import type {
   LecturePlanArtifact,
 } from "../../core/contracts.js";
 import type { Treatment } from "./planner-types.js";
+import { CHAPTER_TRANSITION_SECONDS } from "./duration-estimator.js";
 
 function sameArray<T>(left: T[], right: T[]): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -55,7 +56,7 @@ export function validateLecturePlan(
       );
     }
     const expectedChapterDuration =
-      18 +
+      CHAPTER_TRANSITION_SECONDS +
       chapter.items.reduce(
         (total, item) => total + item.duration_seconds,
         0,

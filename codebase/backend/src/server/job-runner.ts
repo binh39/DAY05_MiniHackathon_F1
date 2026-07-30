@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PipelineConfig } from "../core/config.js";
@@ -242,6 +243,12 @@ export class JobRunner {
     void this.drain();
   }
 
+  async runNow(jobId: string): Promise<void> {
+    if (this.active) throw new Error("Worker đang xử lý một job khác.");
+    await this.run(jobId);
+    this.active = undefined;
+  }
+
   async cancel(jobId: string): Promise<boolean> {
     const queuedIndex = this.queue.indexOf(jobId);
     if (queuedIndex >= 0) {
@@ -315,16 +322,28 @@ export class JobRunner {
       error: undefined,
     });
 
+    const codeDirectory = path.resolve(
+      process.env.PIPELINE_CODE_DIRECTORY ?? this.projectDirectory,
+    );
+    const compiledCli = path.join(codeDirectory, "dist", "src", "cli.js");
     const tsxCli = path.join(
-      this.projectDirectory,
+      codeDirectory,
       "node_modules",
       "tsx",
       "dist",
       "cli.mjs",
     );
+    const cliArguments = existsSync(compiledCli)
+      ? [compiledCli, "run", path.relative(this.projectDirectory, configPath)]
+      : [
+          tsxCli,
+          path.join(codeDirectory, "src", "cli.ts"),
+          "run",
+          path.relative(this.projectDirectory, configPath),
+        ];
     const child = spawn(
       process.execPath,
-      [tsxCli, "src/cli.ts", "run", path.relative(this.projectDirectory, configPath)],
+      cliArguments,
       {
         cwd: this.projectDirectory,
         windowsHide: true,
@@ -426,7 +445,7 @@ export class JobRunner {
               : voiceRunning
                 ? MODULE_META.module5b_voice_generator.stage
                 : MODULE_META[event.module].stage;
-        await this.store.update(jobId, {
+        const updated = await this.store.update(jobId, {
           modules: states,
           stage:
             event.type === "MODULE_FAILED"
@@ -436,6 +455,30 @@ export class JobRunner {
           failed_module:
             event.type === "MODULE_FAILED" ? event.module : undefined,
         });
+        if (event.type === "MODULE_COMPLETED" && this.firebase?.uploadRunDirectory) {
+          try {
+            const runStorage = await this.firebase.uploadRunDirectory({
+              ...updated,
+              run_directory: path.join(
+                this.projectDirectory,
+                "runs",
+                updated.run_id,
+              ),
+            });
+            await this.store.update(jobId, {
+              cloud_storage: { ...updated.cloud_storage, ...runStorage },
+            });
+          } catch (error) {
+            await this.store.update(jobId, {
+              warnings: [
+                ...updated.warnings,
+                `Không thể đồng bộ artifact ${event.module}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              ],
+            });
+          }
+        }
       });
     };
 

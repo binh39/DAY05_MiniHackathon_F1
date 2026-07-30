@@ -9,7 +9,7 @@ import {
 } from "../../core/contracts.js";
 import { validateLecturePlan } from "./coverage-validator.js";
 
-const PROMPT_VERSION = "module2-v2-duration-contract";
+const PROMPT_VERSION = "module2-v3-real-tts-duration-contract";
 
 function documentPlanningHash(document: DocumentArtifact): string {
   const planningInput = {

@@ -386,6 +386,19 @@ export async function deleteJob(id: string): Promise<void> {
   );
 }
 
+export async function deleteVideo(id: string): Promise<void> {
+  await responseJson<{
+    deleted: true;
+    preserved_document: true;
+    document: ApiJob;
+  }>(
+    await fetch(`${API_BASE_URL}/jobs/${id}/video`, {
+      method: "DELETE",
+      headers: await authorizationHeaders(),
+    }),
+  );
+}
+
 export async function retryJob(id: string): Promise<ApiJob> {
   return responseJson<ApiJob>(
     await fetch(`${API_BASE_URL}/jobs/${id}/retry`, {

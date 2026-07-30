@@ -49,7 +49,7 @@ export async function createRemotionRenderSession(
   visualStyle: PipelineConfig["visual_style"],
 ): Promise<RemotionRenderSession> {
   const entryPoint = path.join(
-    projectDirectory,
+    process.env.PIPELINE_CODE_DIRECTORY ?? projectDirectory,
     "src",
     "remotion",
     "index.tsx",
@@ -71,6 +71,7 @@ export async function createRemotionRenderSession(
   process.stdout.write("  Opening Remotion headless browser...\n");
   const browser: Browser = await openBrowser("chrome", {
     chromeMode: "headless-shell",
+    browserExecutable: process.env.CHROME_PATH ?? null,
     logLevel: "warn",
   });
   return {

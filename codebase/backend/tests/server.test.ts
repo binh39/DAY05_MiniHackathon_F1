@@ -1129,6 +1129,134 @@ test("delete API removes owned local and cloud job data", async (t) => {
   await assert.rejects(access(path.join(jobsDirectory, `${job.id}.json`)));
 });
 
+test("delete video preserves PDF, module 1 assets and document record", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const backendDirectory = path.join(directory, "backend");
+  const jobsDirectory = path.join(backendDirectory, "jobs");
+  const uploadsDirectory = path.join(backendDirectory, "uploads");
+  const runDirectory = path.join(directory, "runs", "delete-video");
+  const pagesDirectory = path.join(runDirectory, "assets", "pages");
+  const audioDirectory = path.join(runDirectory, "assets", "audio");
+  await Promise.all([
+    mkdir(jobsDirectory, { recursive: true }),
+    mkdir(uploadsDirectory, { recursive: true }),
+    mkdir(pagesDirectory, { recursive: true }),
+    mkdir(audioDirectory, { recursive: true }),
+  ]);
+  const inputPath = path.join(uploadsDirectory, "delete-video.pdf");
+  await Promise.all([
+    writeFile(inputPath, "%PDF-test", "utf8"),
+    writeFile(path.join(runDirectory, "01_document.json"), "{}", "utf8"),
+    writeFile(path.join(runDirectory, "07_summary.json"), "{}", "utf8"),
+    writeFile(path.join(runDirectory, "lecture.mp4"), "video", "utf8"),
+    writeFile(path.join(pagesDirectory, "page-001.png"), "page", "utf8"),
+    writeFile(path.join(audioDirectory, "scene.wav"), "audio", "utf8"),
+  ]);
+  const states = initialModuleStates();
+  states.module1_document_intelligence = { status: "COMPLETED" };
+  for (const module of [
+    "module2_lecture_planner",
+    "module3_script_generator",
+    "module4_storyboard_generator",
+    "module5a_visual_generator",
+    "module5b_voice_generator",
+    "module6_video_composer",
+  ] as const) {
+    states[module] = { status: "COMPLETED" };
+  }
+  const now = new Date().toISOString();
+  const job: JobRecord = {
+    kind: "VIDEO",
+    id: "delete-video",
+    owner_uid: "alice",
+    run_id: "delete-video",
+    status: "COMPLETED",
+    stage: "COMPLETED",
+    progress: 100,
+    created_at: now,
+    updated_at: now,
+    input_file: inputPath,
+    original_filename: "delete-video.pdf",
+    input_size_bytes: 9,
+    fields: {
+      aspect_ratio: "16:9",
+      duration_option: "3-5",
+      language: "vi",
+      voice_id: "vi-VN-Neural2-A",
+      visual_style: "modern_minimal",
+    },
+    attempt: 1,
+    run_directory: runDirectory,
+    warnings: [],
+    modules: states,
+    cloud_storage: {
+      input: "gs://test/input.pdf",
+      video: "gs://test/lecture.mp4",
+    },
+  };
+  await writeFile(
+    path.join(jobsDirectory, `${job.id}.json`),
+    JSON.stringify(job),
+  );
+  let artifactsDeleted = "";
+  let wholeJobDeleted = "";
+  const firebase: FirebaseServices = {
+    async verifyIdToken() {
+      return { uid: "alice" };
+    },
+    async persistJob() {},
+    async uploadInput() {
+      return "gs://test/input.pdf";
+    },
+    async uploadArtifacts() {
+      return {};
+    },
+    async deleteArtifacts(candidate) {
+      artifactsDeleted = candidate.id;
+    },
+    async deleteJob(candidate) {
+      wholeJobDeleted = candidate.id;
+    },
+  };
+  const server = await createServer(directory, {
+    backendDirectory,
+    autoRunJobs: false,
+    authRequired: true,
+    firebaseServices: firebase,
+  });
+  t.after(() => server.close());
+
+  const response = await server.inject({
+    method: "DELETE",
+    url: `/api/jobs/${job.id}/video`,
+    headers: { authorization: "Bearer alice-token" },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().preserved_document, true);
+  assert.equal(response.json().document.kind, "DOCUMENT");
+  assert.equal(response.json().document.stage, "DOCUMENT_READY");
+  assert.equal(artifactsDeleted, job.id);
+  assert.equal(wholeJobDeleted, "");
+  await assert.doesNotReject(access(inputPath));
+  await assert.doesNotReject(
+    access(path.join(runDirectory, "01_document.json")),
+  );
+  await assert.doesNotReject(
+    access(path.join(runDirectory, "07_summary.json")),
+  );
+  await assert.doesNotReject(
+    access(path.join(pagesDirectory, "page-001.png")),
+  );
+  await assert.rejects(access(path.join(runDirectory, "lecture.mp4")));
+  await assert.rejects(access(audioDirectory));
+  const stored = JSON.parse(
+    await readFile(path.join(jobsDirectory, `${job.id}.json`), "utf8"),
+  ) as JobRecord;
+  assert.equal(stored.kind, "DOCUMENT");
+  assert.equal(stored.cloud_storage?.input, "gs://test/input.pdf");
+  assert.equal(stored.cloud_storage?.video, undefined);
+});
+
 test("retention removes old terminal jobs but keeps active jobs", async (t) => {
   const directory = await temporaryDirectory(t);
   const backendDirectory = path.join(directory, "backend");

@@ -136,6 +136,20 @@ class FakeAdapter implements TtsAdapter {
   }
 }
 
+class RateAwareFakeAdapter implements TtsAdapter {
+  readonly provider = "rate-aware-fake-google";
+  synthesizeCalls = 0;
+  speakingRates: number[] = [];
+
+  async assertVoiceAvailable(): Promise<void> {}
+
+  async synthesize(request: SpeechSynthesisRequest): Promise<Buffer> {
+    this.synthesizeCalls += 1;
+    this.speakingRates.push(request.speakingRate);
+    return createSilentWav(13 / request.speakingRate, 24_000);
+  }
+}
+
 async function temporaryDirectory(t: test.TestContext): Promise<string> {
   const directory = await mkdtemp(
     path.join(os.tmpdir(), "ai-lecture-video-module5b-"),
@@ -230,4 +244,32 @@ test("voice generator records a playable silent fallback after final failure", a
   assert.equal(adapter.synthesizeCalls, 3);
   assert.equal(manifest.scenes[0]?.status, "FAILED");
   assert.match(manifest.scenes[0]?.warnings[0] ?? "", /silent fallback/);
+});
+
+test("voice generator recalibrates TTS rate before module 6 when audio is too short", async (t) => {
+  const projectDirectory = await temporaryDirectory(t);
+  const adapter = new RateAwareFakeAdapter();
+  const durationConfig: PipelineConfig = {
+    ...config,
+    duration: {
+      option: "3-5",
+      min_seconds: 18,
+      max_seconds: 30,
+      target_seconds: 25.5,
+    },
+  };
+  const manifest = await generateVoiceManifest(
+    durationConfig,
+    script,
+    storyboard,
+    projectDirectory,
+    path.join(projectDirectory, "runs", "duration-calibration"),
+    adapter,
+  );
+
+  assert.equal(adapter.synthesizeCalls, 2);
+  assert.equal(adapter.speakingRates[0], 1);
+  assert.ok((adapter.speakingRates[1] ?? 1) < 0.8);
+  assert.ok(manifest.total_duration_seconds >= 18);
+  assert.ok(manifest.total_duration_seconds <= 30);
 });

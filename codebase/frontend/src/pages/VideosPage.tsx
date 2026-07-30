@@ -101,7 +101,7 @@ function ModuleProgress({ modules }: { modules: PipelineModuleStates }) {
 }
 
 export function VideosPage() {
-  const { videos, retryVideo, cancelVideo, deleteLibraryJob } = useLibrary();
+  const { videos, retryVideo, cancelVideo, deleteVideo } = useLibrary();
   const navigate = useNavigate();
   const location = useRouter();
   const [query, setQuery] = useState("");
@@ -222,7 +222,7 @@ export function VideosPage() {
     if (
       !video.jobId ||
       !window.confirm(
-        `Xóa "${video.title}" cùng PDF và toàn bộ artifact liên quan? Hành động này không thể hoàn tác.`,
+        `Xóa video "${video.title}"? Tài liệu PDF gốc vẫn được giữ trong thư viện.`,
       )
     ) {
       return;
@@ -230,7 +230,7 @@ export function VideosPage() {
     try {
       setDeleteError("");
       if (playing?.jobId === video.jobId) setPlaying(null);
-      await deleteLibraryJob(video.jobId);
+      await deleteVideo(video.jobId);
     } catch (error) {
       setDeleteError(
         error instanceof Error ? error.message : "Không thể xóa video.",
@@ -379,7 +379,7 @@ export function VideosPage() {
                     className="delete-library-button"
                     onClick={() => void removeVideo(video)}
                     aria-label={`Xóa ${video.title}`}
-                    title="Xóa job và toàn bộ artifact"
+                    title="Xóa video, giữ lại tài liệu PDF"
                   >
                     <Trash2 size={16} />
                   </button>

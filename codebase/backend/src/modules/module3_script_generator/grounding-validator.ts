@@ -3,6 +3,7 @@ import type {
   LecturePlanArtifact,
   ScriptArtifact,
 } from "../../core/contracts.js";
+import { SCRIPT_DURATION_TOLERANCE_RATE } from "./duration-budget.js";
 
 function findDuplicates(values: string[]): string[] {
   const seen = new Set<string>();
@@ -57,8 +58,11 @@ export function validateScript(
     // Each narration duration is rounded up to a whole second. A small
     // aggregate margin avoids rejecting a script only because of rounding.
     const durationToleranceSeconds = Math.max(
-      2,
-      Math.ceil(plannedChapter.duration_seconds * 0.05),
+      3,
+      Math.ceil(
+        plannedChapter.duration_seconds *
+          SCRIPT_DURATION_TOLERANCE_RATE,
+      ),
     );
     if (
       chapter.estimated_duration_seconds >

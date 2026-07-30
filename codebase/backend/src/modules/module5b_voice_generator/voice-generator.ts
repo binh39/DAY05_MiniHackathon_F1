@@ -27,6 +27,9 @@ import { parseWav, writeSilentWav } from "./wav.js";
 const SAMPLE_RATE_HERTZ = 24_000;
 const MAX_CONCURRENCY = 4;
 const MAX_ATTEMPTS = 3;
+const CHAPTER_GAP_SECONDS = 0.6;
+const MIN_SAFE_COMPOSER_TEMPO = 0.8;
+const MAX_SAFE_COMPOSER_TEMPO = 1.25;
 
 function languageCode(language: string): string {
   const normalized = language.toLowerCase();
@@ -82,6 +85,7 @@ export async function generateVoiceManifest(
   projectDirectory: string,
   runDirectory: string,
   adapter: TtsAdapter = new GoogleCloudTtsAdapter(),
+  calibrationAttempt = 0,
 ): Promise<VoiceManifest> {
   if (config.voice.provider !== "google") {
     throw new Error(
@@ -242,5 +246,68 @@ export async function generateVoiceManifest(
   };
   validateVoiceCoverage(storyboard, manifest);
   await validateVoiceFiles(projectDirectory, manifest);
+
+  const chapterGapCount = storyboard.scenes.reduce(
+    (count, scene, index) =>
+      index > 0 &&
+      storyboard.scenes[index - 1]?.chapter_id !== scene.chapter_id
+        ? count + 1
+        : count,
+    0,
+  );
+  const fixedGapSeconds = chapterGapCount * CHAPTER_GAP_SECONDS;
+  const rawDurationSeconds =
+    manifest.total_duration_seconds + fixedGapSeconds;
+  const outsideRequiredRange =
+    rawDurationSeconds < config.duration.min_seconds ||
+    rawDurationSeconds > config.duration.max_seconds;
+  const desiredVoiceSeconds = Math.max(
+    1,
+    config.duration.target_seconds - fixedGapSeconds,
+  );
+  const requiredTempo =
+    manifest.total_duration_seconds / desiredVoiceSeconds;
+  const containsFallback = manifest.scenes.some(
+    (scene) => scene.status === "FAILED",
+  );
+
+  if (
+    calibrationAttempt === 0 &&
+    outsideRequiredRange &&
+    !containsFallback &&
+    (requiredTempo < MIN_SAFE_COMPOSER_TEMPO ||
+      requiredTempo > MAX_SAFE_COMPOSER_TEMPO)
+  ) {
+    const calibratedSpeakingRate = Math.max(
+      0.5,
+      Math.min(
+        2,
+        config.voice.speaking_rate * requiredTempo,
+      ),
+    );
+    if (
+      Math.abs(calibratedSpeakingRate - config.voice.speaking_rate) >=
+      0.01
+    ) {
+      process.stdout.write(
+        `  Voice duration calibration: ${rawDurationSeconds.toFixed(2)}s -> target ${config.duration.target_seconds}s, speaking_rate=${calibratedSpeakingRate.toFixed(3)}\n`,
+      );
+      return generateVoiceManifest(
+        {
+          ...config,
+          voice: {
+            ...config.voice,
+            speaking_rate: calibratedSpeakingRate,
+          },
+        },
+        script,
+        storyboard,
+        projectDirectory,
+        runDirectory,
+        adapter,
+        calibrationAttempt + 1,
+      );
+    }
+  }
   return manifest;
 }

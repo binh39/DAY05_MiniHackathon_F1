@@ -6,19 +6,7 @@ import type {
   ChapterScriptDecision,
   SemanticReview,
 } from "./script-types.js";
-
-const WORDS_PER_MINUTE = 125;
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/u).filter(Boolean).length;
-}
-
-function durationSeconds(text: string): number {
-  return Math.max(
-    3,
-    Math.ceil((countWords(text) / WORDS_PER_MINUTE) * 60),
-  );
-}
+import { estimateSpokenDurationSeconds } from "./duration-budget.js";
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
@@ -44,7 +32,9 @@ export function buildScriptArtifact(
       objective_indices: unique(narration.objective_indices).sort(
         (left, right) => left - right,
       ),
-      estimated_duration_seconds: durationSeconds(narration.text),
+      estimated_duration_seconds: estimateSpokenDurationSeconds(
+        narration.text,
+      ),
     }));
     const objectiveCoverage = plannedChapter.learning_objectives.map(
       (objective, objectiveIndex) => ({

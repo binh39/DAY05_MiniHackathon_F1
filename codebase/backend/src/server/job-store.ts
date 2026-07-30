@@ -7,12 +7,16 @@ export class JobStore {
 
   constructor(
     private readonly directory: string,
-    private readonly onPersist?: (job: JobRecord) => Promise<void>,
+    private readonly persistence?: {
+      loadAll?: () => Promise<JobRecord[]>;
+      persist: (job: JobRecord) => Promise<void>;
+    },
+    private readonly writeLocalFiles = true,
   ) {}
 
   async initialize(): Promise<void> {
     await mkdir(this.directory, { recursive: true });
-    const files = await readdir(this.directory);
+    const files = this.writeLocalFiles ? await readdir(this.directory) : [];
     for (const file of files.filter(
       (name) => name.endsWith(".json") && !name.endsWith(".config.json"),
     )) {
@@ -41,6 +45,14 @@ export class JobStore {
         // Ignore invalid metadata files; they are never exposed by the API.
       }
     }
+    await this.synchronize();
+  }
+
+  async synchronize(): Promise<void> {
+    if (!this.persistence?.loadAll) return;
+    const remoteJobs = await this.persistence.loadAll();
+    this.jobs.clear();
+    for (const job of remoteJobs) this.jobs.set(job.id, job);
   }
 
   list(): JobRecord[] {
@@ -77,20 +89,24 @@ export class JobStore {
 
   async delete(id: string): Promise<void> {
     if (!this.jobs.has(id)) return;
-    await unlink(path.join(this.directory, `${id}.json`)).catch(
-      (error: NodeJS.ErrnoException) => {
-        if (error.code !== "ENOENT") throw error;
-      },
-    );
+    if (this.writeLocalFiles) {
+      await unlink(path.join(this.directory, `${id}.json`)).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+        },
+      );
+    }
     this.jobs.delete(id);
   }
 
   private async persist(job: JobRecord): Promise<void> {
-    await writeFile(
-      path.join(this.directory, `${job.id}.json`),
-      `${JSON.stringify(job, null, 2)}\n`,
-      "utf8",
-    );
-    await this.onPersist?.(job);
+    if (this.writeLocalFiles) {
+      await writeFile(
+        path.join(this.directory, `${job.id}.json`),
+        `${JSON.stringify(job, null, 2)}\n`,
+        "utf8",
+      );
+    }
+    await this.persistence?.persist(job);
   }
 }

@@ -33,6 +33,11 @@ import {
 } from "./job-runner.js";
 import { JobStore } from "./job-store.js";
 import {
+  cloudRunJobDispatcher,
+  localJobDispatcher,
+  type JobDispatcher,
+} from "./job-dispatcher.js";
+import {
   createFirebaseServices,
   type AuthenticatedUser,
   type FirebaseServices,
@@ -111,6 +116,7 @@ export async function createServer(
     firebaseServices?: FirebaseServices;
     quotaLimits?: Partial<UserQuotaLimits>;
     retentionDays?: number;
+    jobDispatcher?: JobDispatcher;
   } = {},
 ): Promise<FastifyInstance> {
   const server = Fastify({
@@ -129,9 +135,11 @@ export async function createServer(
   const authRequired =
     options.authRequired ??
     (process.env.FIREBASE_AUTH_REQUIRED ?? "false").toLowerCase() === "true";
+  const cloudPersistence =
+    (process.env.PERSISTENCE_MODE ?? "local").toLowerCase() === "cloud";
   const firebase =
     options.firebaseServices ??
-    (authRequired
+    (authRequired || cloudPersistence
       ? createFirebaseServices({
           projectId:
             process.env.GOOGLE_CLOUD_PROJECT ??
@@ -141,7 +149,19 @@ export async function createServer(
             "project-5d300c02-d165-4037-b6f.firebasestorage.app",
         })
       : undefined);
-  const store = new JobStore(jobsDirectory, firebase?.persistJob);
+  const store = new JobStore(
+    jobsDirectory,
+    firebase
+      ? {
+          loadAll:
+            cloudPersistence && firebase.loadJobs
+              ? () => firebase.loadJobs!()
+              : undefined,
+          persist: (job) => firebase.persistJob(job),
+        }
+      : undefined,
+    !cloudPersistence,
+  );
   await store.initialize();
   const quotaLimits = {
     ...quotaLimitsFromEnv(),
@@ -153,10 +173,12 @@ export async function createServer(
 
   async function deleteJobData(job: JobRecord): Promise<void> {
     await firebase?.deleteJob?.(job);
-    const inputPath = safePathWithin(uploadsDirectory, job.input_file);
-    await unlink(inputPath).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") throw error;
-    });
+    if (job.input_file) {
+      const inputPath = safePathWithin(uploadsDirectory, job.input_file);
+      await unlink(inputPath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+    }
     if (job.run_directory) {
       await rm(safeRunDirectory(projectDirectory, job), {
         recursive: true,
@@ -179,6 +201,124 @@ export async function createServer(
       });
     }
     await store.delete(job.id);
+  }
+
+  async function deleteVideoData(job: JobRecord): Promise<JobRecord> {
+    await firebase?.deleteArtifacts?.(job);
+    const module1MarkedCompleted =
+      job.modules?.module1_document_intelligence.status === "COMPLETED";
+    if (module1MarkedCompleted && !job.run_directory) {
+      job = await materializeRunDirectory(job).catch(() => job);
+    }
+    const candidateRunDirectory =
+      module1MarkedCompleted && job.run_directory
+        ? safeRunDirectory(projectDirectory, job)
+        : undefined;
+    const module1Completed = candidateRunDirectory
+      ? await stat(path.join(candidateRunDirectory, "01_document.json"))
+          .then(() => true)
+          .catch(() => false)
+      : false;
+    const runDirectory = module1Completed
+      ? candidateRunDirectory
+      : undefined;
+
+    if (runDirectory) {
+      const preservedRunEntries = new Set([
+        "00_config.json",
+        "01_document.json",
+        "07_summary.json",
+        "assets",
+      ]);
+      for (const entry of await readdir(runDirectory, {
+        withFileTypes: true,
+      })) {
+        if (!preservedRunEntries.has(entry.name)) {
+          await rm(path.join(runDirectory, entry.name), {
+            recursive: entry.isDirectory(),
+            force: true,
+          });
+        }
+      }
+      const assetsDirectory = path.join(runDirectory, "assets");
+      try {
+        for (const entry of await readdir(assetsDirectory, {
+          withFileTypes: true,
+        })) {
+          if (entry.name !== "pages") {
+            await rm(path.join(assetsDirectory, entry.name), {
+              recursive: entry.isDirectory(),
+              force: true,
+            });
+          }
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    } else if (job.run_directory) {
+      await rm(safeRunDirectory(projectDirectory, job), {
+        recursive: true,
+        force: true,
+      });
+    }
+
+    const configDirectory = path.resolve(
+      projectDirectory,
+      "backend-data",
+      "jobs",
+    );
+    if (/^[a-zA-Z0-9_-]+$/u.test(job.run_id)) {
+      await unlink(
+        safePathWithin(
+          configDirectory,
+          path.join(configDirectory, `${job.run_id}.config.json`),
+        ),
+      ).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+    }
+
+    const states = initialModuleStates();
+    if (module1Completed) {
+      states.module1_document_intelligence = {
+        ...job.modules?.module1_document_intelligence,
+        status: "COMPLETED",
+      };
+    }
+    let preservedCloudStorage: Record<string, string> | undefined = job.cloud_storage?.input
+      ? { input: job.cloud_storage.input }
+      : undefined;
+    if (firebase?.deleteRunArtifacts) await firebase.deleteRunArtifacts(job);
+    if (runDirectory && firebase?.uploadRunDirectory) {
+      const runStorage = await firebase.uploadRunDirectory({
+        ...job,
+        run_directory: runDirectory,
+      });
+      preservedCloudStorage = { ...preservedCloudStorage, ...runStorage };
+    }
+    return store.update(job.id, {
+      kind: "DOCUMENT",
+      status: module1Completed ? "COMPLETED" : "QUEUED",
+      stage: module1Completed ? "DOCUMENT_READY" : "QUEUED",
+      progress: module1Completed ? 100 : 0,
+      run_id: module1Completed
+        ? job.run_id
+        : `${job.id}_document_${job.attempt + 1}`,
+      run_directory: module1Completed ? runDirectory : undefined,
+      modules: states,
+      cloud_storage: preservedCloudStorage,
+      quota_reserved_seconds: 0,
+      result_duration_seconds: undefined,
+      result_file_size_bytes: undefined,
+      outline_draft: undefined,
+      approved_at: undefined,
+      feedback: undefined,
+      failed_module: undefined,
+      resume_from: undefined,
+      bypass_generation_cache: undefined,
+      warnings: [],
+      error: undefined,
+    });
   }
 
   if (retentionDays > 0) {
@@ -205,6 +345,35 @@ export async function createServer(
       : undefined,
     firebase,
   );
+  const dispatcher =
+    options.jobDispatcher ??
+    ((process.env.PIPELINE_EXECUTION_MODE ?? "local") === "cloud-run-job"
+      ? cloudRunJobDispatcher({
+          projectId: process.env.GOOGLE_CLOUD_PROJECT ?? "",
+          region: process.env.CLOUD_RUN_REGION ?? "asia-southeast1",
+          jobName: process.env.CLOUD_RUN_JOB_NAME ?? "ai-lecture-worker",
+        })
+      : localJobDispatcher(runner));
+
+  async function dispatchJob(jobId: string): Promise<void> {
+    if (autoRunJobs) await dispatcher.dispatch(jobId);
+  }
+
+  async function materializeRunDirectory(job: JobRecord): Promise<JobRecord> {
+    if (job.run_directory) {
+      const exists = await stat(job.run_directory).then(() => true).catch(() => false);
+      if (exists) return job;
+    }
+    if (!firebase?.downloadRunDirectory || !job.cloud_storage?.run_prefix) {
+      throw new Error("Job chưa có run artifacts khả dụng.");
+    }
+    const runDirectory = path.join(projectDirectory, "runs", job.run_id);
+    const cached = await stat(runDirectory).then(() => true).catch(() => false);
+    if (cached) return store.update(job.id, { run_directory: runDirectory });
+    await mkdir(runDirectory, { recursive: true });
+    await firebase.downloadRunDirectory(job, runDirectory);
+    return store.update(job.id, { run_directory: runDirectory });
+  }
 
   async function authenticate(
     authorization: string | undefined,
@@ -222,6 +391,7 @@ export async function createServer(
   }
 
   async function loadOutlineArtifacts(job: JobRecord) {
+    job = await materializeRunDirectory(job);
     const runDirectory = safeRunDirectory(projectDirectory, job);
     const [document, plan, config] = await Promise.all([
       readFile(path.join(runDirectory, "01_document.json"), "utf8").then(
@@ -238,6 +408,7 @@ export async function createServer(
   }
 
   async function loadResultArtifacts(job: JobRecord) {
+    job = await materializeRunDirectory(job);
     const runDirectory = safeRunDirectory(projectDirectory, job);
     const [document, plan, manifest] = await Promise.all([
       readFile(path.join(runDirectory, "01_document.json"), "utf8").then(
@@ -276,6 +447,11 @@ export async function createServer(
       fields: 10,
     },
   });
+  if (cloudPersistence) {
+    server.addHook("preHandler", async (request) => {
+      if (request.url !== "/api/health") await store.synchronize();
+    });
+  }
 
   server.get("/api/health", async () => ({
     status: "ok",
@@ -418,7 +594,8 @@ export async function createServer(
         };
       }
       await store.create(job);
-      if (autoRunJobs) runner.enqueue(id);
+      await dispatchJob(id);
+      if (cloudPersistence) await unlink(uploadPath).catch(() => undefined);
       return reply.code(202).send(toPublicJob(job));
     } catch (error) {
       if (uploaded || fileWritten) {
@@ -509,7 +686,8 @@ export async function createServer(
         job.cloud_storage = { input: await firebase.uploadInput(job) };
       }
       await store.create(job);
-      if (autoRunJobs) runner.enqueue(id);
+      await dispatchJob(id);
+      if (cloudPersistence) await unlink(uploadPath).catch(() => undefined);
       return reply.code(202).send(toPublicJob(job));
     } catch (error) {
       if (uploaded || fileWritten) {
@@ -536,9 +714,13 @@ export async function createServer(
           message: errorMessage(error),
         });
       }
-      const job = store.get(request.params.id);
+      let job = store.get(request.params.id);
       if (!job || !ownsJob(job, user)) {
         return reply.code(404).send({ error: "DOCUMENT_NOT_FOUND" });
+      }
+      if (job.stage === "DOCUMENT_READY" && !job.run_directory) {
+        const existingJob = job;
+        job = await materializeRunDirectory(existingJob).catch(() => existingJob);
       }
       if (job.stage !== "DOCUMENT_READY" || !job.run_directory) {
         return reply.code(409).send({
@@ -570,7 +752,7 @@ export async function createServer(
           failed_module: undefined,
           error: undefined,
         });
-        if (autoRunJobs) runner.enqueue(job.id);
+        await dispatchJob(job.id);
         return reply.code(202).send(toPublicJob(updated));
       } catch (error) {
         const quotaError =
@@ -592,12 +774,15 @@ export async function createServer(
         if (!job || !ownsJob(job, user)) {
           return reply.code(404).send({ error: "DOCUMENT_NOT_FOUND" });
         }
-        await stat(job.input_file);
         reply.header("Content-Type", "application/pdf");
         reply.header(
           "Content-Disposition",
           `inline; filename="${job.original_filename.replaceAll('"', "")}"`,
         );
+        if (firebase?.downloadObject && job.cloud_storage?.input) {
+          return reply.send(await firebase.downloadObject(job.cloud_storage.input));
+        }
+        await stat(job.input_file);
         return reply.send(createReadStream(job.input_file));
       } catch (error) {
         return reply.code(401).send({
@@ -617,7 +802,8 @@ export async function createServer(
         if (!job || !ownsJob(job, user)) {
           return reply.code(404).send({ error: "DOCUMENT_NOT_FOUND" });
         }
-        const runDirectory = safeRunDirectory(projectDirectory, job);
+        const localJob = await materializeRunDirectory(job);
+        const runDirectory = safeRunDirectory(projectDirectory, localJob);
         const summaryPath = path.join(runDirectory, "07_summary.json");
         try {
           return summaryArtifactSchema.parse(
@@ -635,11 +821,62 @@ export async function createServer(
             `${JSON.stringify(summary, null, 2)}\n`,
             "utf8",
           );
+          if (firebase?.uploadRunDirectory) {
+            const runStorage = await firebase.uploadRunDirectory(localJob);
+            await store.update(job.id, {
+              cloud_storage: { ...job.cloud_storage, ...runStorage },
+            });
+          }
           return summary;
         }
       } catch (error) {
         return reply.code(409).send({
           error: "SUMMARY_NOT_AVAILABLE",
+          message: errorMessage(error),
+        });
+      }
+    },
+  );
+
+  server.delete<{ Params: { id: string } }>(
+    "/api/jobs/:id/video",
+    async (request, reply) => {
+      let user: AuthenticatedUser;
+      try {
+        user = await authenticate(request.headers.authorization);
+      } catch (error) {
+        return reply.code(401).send({
+          error: "UNAUTHENTICATED",
+          message: errorMessage(error),
+        });
+      }
+      const job = store.get(request.params.id);
+      if (!job || !ownsJob(job, user) || (job.kind ?? "VIDEO") !== "VIDEO") {
+        return reply.code(404).send({ error: "VIDEO_NOT_FOUND" });
+      }
+      if (["QUEUED", "RUNNING"].includes(job.status)) {
+        return reply.code(409).send({
+          error: "VIDEO_NOT_DELETABLE",
+          message: "Hãy hủy xử lý trước khi xóa video.",
+        });
+      }
+      try {
+        const preservedDocument = await deleteVideoData(job);
+        if (preservedDocument.status === "QUEUED") {
+          await dispatchJob(job.id);
+        }
+        return {
+          deleted: true,
+          preserved_document: true,
+          document: toPublicJob(preservedDocument),
+        };
+      } catch (error) {
+        request.log.error(
+          { err: error, jobId: job.id },
+          "Delete video failed",
+        );
+        return reply.code(500).send({
+          error: "VIDEO_DELETE_FAILED",
           message: errorMessage(error),
         });
       }
@@ -730,18 +967,22 @@ export async function createServer(
           status: job.status,
         });
       }
+      const resumableJob =
+        !job.run_directory && job.cloud_storage?.run_prefix
+          ? await materializeRunDirectory(job)
+          : job;
       const attempt = job.attempt + 1;
       const durationRepair =
         job.error?.includes("DURATION_OUT_OF_RANGE") ?? false;
       const retryModule = durationRepair
         ? "module3_script_generator"
-        : job.resume_from ?? job.failed_module;
+        : resumableJob.resume_from ?? resumableJob.failed_module;
       const resumeStates =
-        retryModule && job.run_directory
-          ? moduleStatesForRetry(job.modules, retryModule)
+        retryModule && resumableJob.run_directory
+          ? moduleStatesForRetry(resumableJob.modules, retryModule)
           : undefined;
       const updated =
-        retryModule && job.run_directory && resumeStates
+        retryModule && resumableJob.run_directory && resumeStates
           ? await store.update(job.id, {
               status: "QUEUED",
               stage: "QUEUED_FOR_MODULE_RETRY",
@@ -771,7 +1012,7 @@ export async function createServer(
               resume_from: undefined,
               bypass_generation_cache: undefined,
             });
-      if (autoRunJobs) runner.enqueue(job.id);
+      await dispatchJob(job.id);
       return reply.code(202).send(toPublicJob(updated));
     },
   );
@@ -920,7 +1161,13 @@ export async function createServer(
           },
           error: undefined,
         });
-        if (autoRunJobs) runner.enqueue(job.id);
+        if (firebase?.uploadRunDirectory) {
+          const runStorage = await firebase.uploadRunDirectory(updated);
+          await store.update(job.id, {
+            cloud_storage: { ...updated.cloud_storage, ...runStorage },
+          });
+        }
+        await dispatchJob(job.id);
         return reply.code(202).send(toPublicJob(updated));
       } catch (error) {
         return reply.code(400).send({
@@ -1060,7 +1307,28 @@ export async function createServer(
     if (job.status !== "COMPLETED") {
       return reply.code(409).send({ error: "JOB_NOT_COMPLETED" });
     }
-    const runDirectory = safeRunDirectory(projectDirectory, job);
+    const artifactMeta = {
+      video: { type: "video/mp4", name: `${job.id}.mp4` },
+      subtitle: {
+        type: "application/x-subrip; charset=utf-8",
+        name: `${job.id}.srt`,
+      },
+      coverage: {
+        type: "application/json; charset=utf-8",
+        name: `${job.id}-coverage.json`,
+      },
+      thumbnail: { type: "image/png", name: `${job.id}-thumbnail.png` },
+    } as const;
+    const cloudUri = job.cloud_storage?.[request.params.kind];
+    if (cloudUri && firebase?.downloadObject) {
+      const meta = artifactMeta[request.params.kind];
+      reply.header("Content-Type", meta.type);
+      reply.header("Content-Disposition", `inline; filename="${meta.name}"`);
+      reply.header("X-Content-Type-Options", "nosniff");
+      return reply.send(await firebase.downloadObject(cloudUri));
+    }
+    const localJob = await materializeRunDirectory(job);
+    const runDirectory = safeRunDirectory(projectDirectory, localJob);
     const staticArtifacts = {
       video: {
         path: path.join(runDirectory, "lecture.mp4"),
@@ -1182,7 +1450,7 @@ export async function createServer(
 
   if (autoRunJobs) {
     for (const job of store.list().filter((item) => item.status === "QUEUED")) {
-      runner.enqueue(job.id);
+      await dispatcher.dispatch(job.id);
     }
   }
   return server;

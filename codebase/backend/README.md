@@ -1,5 +1,28 @@
 # AI Lecture Video
 
+## Production runtime
+
+Backend dùng chung một Docker image cho hai workload:
+
+- API: `node dist/src/server/index.js` (Cloud Run Service).
+- Worker: `node dist/src/server/cloud-worker.js` (Cloud Run Job), nhận
+  `PIPELINE_JOB_ID` từ execution override.
+
+Ở production đặt `PERSISTENCE_MODE=cloud` và
+`PIPELINE_EXECUTION_MODE=cloud-run-job`. Firestore trở thành nguồn trạng thái
+chính; PDF, run artifacts và video nằm trong Cloud Storage. Worker tải dữ liệu
+vào thư mục tạm riêng cho từng execution, đồng bộ kết quả trở lại Storage rồi
+xóa workspace khi thoát. Chế độ `local` vẫn được giữ cho development/test.
+
+Image đã gồm Node.js 22, FFmpeg/FFprobe, Chromium và Noto fonts; mặc định chạy
+bằng user `node`. Không đưa `.env` hoặc Application Default Credentials local
+vào build context. Docker daemon phải chạy trước khi dùng:
+
+```powershell
+docker build -t ai-lecture-video:local .
+docker run --rm -p 8080:8080 --env-file .env ai-lecture-video:local
+```
+
 ## Artifact CP4
 
 Các file chấm CP4 được đặt ở **thư mục gốc repo** theo cấu trúc của hackathon,

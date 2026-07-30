@@ -44,11 +44,12 @@ Log có phương pháp đếm, hash nguồn, các điều kiện lọc và 5 ví
 
 Các con số dưới đây là *số lượt trong mining*, không suy rộng thành số người sẽ dùng hoặc số giờ đã tiết kiệm. “Tốn gì” là cơ chế chi phí đã quan sát/giả thuyết cần xác minh, không phải số giờ tự khai.
 
-| Ứng viên | Tín hiệu quy mô có thể kiểm lại | Tần suất/pain | Tốn gì mỗi lần | Khả thi trong prototype | Quyết định |
-|---|---:|---|---|---|---|
-| A1 — Context Rescue: giải thích đoạn đang chọn | ~573/1.261 lượt làm rõ; 179 lượt retrieval/context fail trong phân tích mining | Cao; cần ngay trong giờ | Hỏi lại, mất mạch học; có downvote ở các case cite/context sai | Cao | Loại vì codebase hiện hữu không phải VLearn selected-text tutor; đổi sản phẩm lúc CP4 sẽ tạo prototype lệch spec |
-| A2 — Catch-up Map dạng văn bản | 141 lượt có từ khóa tổng hợp; 49 refusal theo rule trong evidence log | Trung bình–cao | Người học tự ghép slide, có thể bỏ prerequisite | Cao | Loại vì chỉ trả lại một summary tĩnh; không kiểm được lời giảng, subtitle, timeline và source coverage đang là lợi thế build đã có |
-| C1 — Catch-up video có căn cứ từ PDF | Cùng 141 lượt nhu cầu tổng hợp; 5 case downvote tiêu biểu trong evidence log | Trung bình–cao; preference video chưa xác minh | Tự tái cấu trúc tài liệu và không có đường kiểm nguồn | Đã có Working prototype cho một PDF 45 trang: chapter, MP4, SRT, coverage | **Chọn có điều kiện**: build phù hợp nhất, nhưng CP5 phải xác nhận format video thực sự hữu ích |
+
+| Ứng viên                                            |                                                 Tín hiệu quy mô có thể kiểm lại | Tần suất/pain                                    | Tốn gì mỗi lần                                                     | Khả thi trong prototype                                                      | Quyết định                                                                                                                                            |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------: | -------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1 — Context Rescue: giải thích đoạn đang chọn | ~573/1.261 lượt làm rõ; 179 lượt retrieval/context fail trong phân tích mining | Cao; cần ngay trong giờ                          | Hỏi lại, mất mạch học; có downvote ở các case cite/context sai | Cao                                                                           | Loại vì codebase hiện hữu không phải VLearn selected-text tutor; đổi sản phẩm lúc CP4 sẽ tạo prototype lệch spec                           |
+| A2 — Catch-up Map dạng văn bản                    |           141 lượt có từ khóa tổng hợp; 49 refusal theo rule trong evidence log | Trung bình–cao                                   | Người học tự ghép slide, có thể bỏ prerequisite                | Cao                                                                           | Loại vì chỉ trả lại một summary tĩnh; không kiểm được lời giảng, subtitle, timeline và source coverage đang là lợi thế build đã có |
+| C1 — Catch-up video có căn cứ từ PDF             |   Cùng 141 lượt nhu cầu tổng hợp; 5 case downvote tiêu biểu trong evidence log | Trung bình–cao; preference video chưa xác minh | Tự tái cấu trúc tài liệu và không có đường kiểm nguồn    | Đã có Working prototype cho một PDF 45 trang: chapter, MP4, SRT, coverage | **Chọn có điều kiện**: build phù hợp nhất, nhưng CP5 phải xác nhận format video thực sự hữu ích                                          |
 
 **Ứng viên đã loại:** A1 có evidence mạnh nhất nhưng không khớp với prototype hiện tại. A2 khớp pain hơn nhưng không tận dụng được sự kiểm chứng nguồn/outline/video đã build. Không giữ cả ba trong MVP.
 
@@ -56,10 +57,11 @@ Các con số dưới đây là *số lượt trong mining*, không suy rộng t
 
 ## §3. Giải pháp tương tự đã nghiên cứu
 
-| Sản phẩm | Flow quan sát | Đáng học | Đáng né | Khác biệt có chủ đích của MVP |
-|---|---|---|---|---|
-| [Google NotebookLM](https://edu.google.com/ai-notebooklm/) | Nạp nguồn → tạo overview/audio/video và hỏi đáp bám nguồn | Lấy nguồn người dùng đưa vào làm giới hạn knowledge; biến cùng nguồn thành nhiều dạng học | Không coi output tổng quan là đủ để xác minh chi tiết của từng claim | Lưu `source_id` cấp element, coverage report và link chapter về đúng trang nguồn |
-| [Microsoft Reading Coach](https://support.microsoft.com/en-us/education/getting-started-with-reading-coach) | Người học đọc → hệ thống phản hồi theo lỗi/độ trôi chảy → luyện tiếp | Phản hồi phải gắn với hành vi học, không chỉ tạo nội dung | Không mở rộng MVP thành hệ thống chấm điểm/coach toàn diện khi chưa có dữ liệu learning outcome | MVP chỉ giúp bắt kịp bằng video có truy vết; self-check/đánh giá hiểu là backlog sau validation |
+
+| Sản phẩm                                                                                                  | Flow quan sát                                                                         | Đáng học                                                                                                 | Đáng né                                                                                                     | Khác biệt có chủ đích của MVP                                                                        |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [Google NotebookLM](https://edu.google.com/ai-notebooklm/)                                                  | Nạp nguồn → tạo overview/audio/video và hỏi đáp bám nguồn                    | Lấy nguồn người dùng đưa vào làm giới hạn knowledge; biến cùng nguồn thành nhiều dạng học | Không coi output tổng quan là đủ để xác minh chi tiết của từng claim                                | Lưu`source_id` cấp element, coverage report và link chapter về đúng trang nguồn                      |
+| [Microsoft Reading Coach](https://support.microsoft.com/en-us/education/getting-started-with-reading-coach) | Người học đọc → hệ thống phản hồi theo lỗi/độ trôi chảy → luyện tiếp | Phản hồi phải gắn với hành vi học, không chỉ tạo nội dung                                        | Không mở rộng MVP thành hệ thống chấm điểm/coach toàn diện khi chưa có dữ liệu learning outcome | MVP chỉ giúp bắt kịp bằng video có truy vết; self-check/đánh giá hiểu là backlog sau validation |
 
 ## §4. Thiết kế
 
@@ -89,52 +91,56 @@ Lý do theo cost-of-error: một lời giảng bịa hoặc gán sai trang có t
 
 ### §4b. Nguyên tắc HAX/PAIR đã áp dụng
 
-| Nguyên tắc | Áp cụ thể vào đâu trong prototype |
-|---|---|
-| G1 — Làm rõ hệ thống làm được gì | UI/README giới hạn PDF 50 MB, 80 trang và chỉ cam kết `FULL`; không hứa đọc chính xác mọi scan/bố cục bất thường. |
-| G2 — Làm rõ nó làm tốt đến đâu | Outline review hiện warning/unreadable page, coverage và source; kết quả có coverage report thay vì nói “đã hiểu toàn bộ”. |
-| G10 — Thu hẹp phạm vi khi nghi ngờ | Module 1 giữ warning cho nội dung không chắc; Module 3 chặn grounded claim thiếu source; Module 4 fallback visual an toàn. |
-| G8 — Gạt bỏ dễ dàng | User có thể cancel/retry job; outline được duyệt trước khi tốn chi phí sinh video và không buộc phải nhận video đã tạo. |
-| G9 — Sửa dễ dàng | Màn outline cho sửa title, objective, thứ tự và mức chi tiết chapter; plan gốc được giữ lại trước khi resume pipeline. |
-| G11 — Giải thích vì sao | Mỗi claim quan trọng trace về `source_id`, chapter có link về trang nguồn, và warning/coverage chỉ ra phần nào không nên tin mù quáng. |
+
+| Nguyên tắc                               | Áp cụ thể vào đâu trong prototype                                                                                                             |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1 — Làm rõ hệ thống làm được gì | UI/README giới hạn PDF 50 MB, 80 trang và chỉ cam kết`FULL`; không hứa đọc chính xác mọi scan/bố cục bất thường.                   |
+| G2 — Làm rõ nó làm tốt đến đâu   | Outline review hiện warning/unreadable page, coverage và source; kết quả có coverage report thay vì nói “đã hiểu toàn bộ”.            |
+| G10 — Thu hẹp phạm vi khi nghi ngờ     | Module 1 giữ warning cho nội dung không chắc; Module 3 chặn grounded claim thiếu source; Module 4 fallback visual an toàn.                   |
+| G8 — Gạt bỏ dễ dàng                   | User có thể cancel/retry job; outline được duyệt trước khi tốn chi phí sinh video và không buộc phải nhận video đã tạo.           |
+| G9 — Sửa dễ dàng                       | Màn outline cho sửa title, objective, thứ tự và mức chi tiết chapter; plan gốc được giữ lại trước khi resume pipeline.               |
+| G11 — Giải thích vì sao                | Mỗi claim quan trọng trace về`source_id`, chapter có link về trang nguồn, và warning/coverage chỉ ra phần nào không nên tin mù quáng. |
 
 ## §5. Kiểu lỗi — 4 lớp chỗ khó và kịch bản rủi ro
 
-| ID | Lớp | Tình huống cụ thể | Hành vi mong muốn | Nguyên tắc |
-|---|---|---|---|---|
-| R1 | ① Nguồn sự thật | Script có grounded claim nhưng không có `source_id` | Chặn artifact, chỉ repair chapter lỗi; không cho claim đi tiếp | G10, G11 |
-| R2 | ① Nguồn sự thật | Claim cite đúng trang nhưng nhầm element/chapter | Semantic/grounding validator đánh lỗi; retry scoped chapter, lưu trace | G2, G10 |
-| R3 | ② Mơ hồ/thiếu thông tin | Trang có chữ/ảnh khó đọc | Gắn warning và cho user xem trang/thumbnail; không biến đoạn đó thành fact chắc chắn | G2, G10 |
-| R4 | ② Mơ hồ/thiếu thông tin | Cần `CROP_AND_HIGHLIGHT` nhưng không có bounding box | Hạ về `ORIGINAL_PAGE`, ghi warning thay vì bịa tọa độ | G10, G11 |
-| R5 | ③ Ngoài phạm vi | User upload file không phải PDF hoặc không có PDF magic bytes | Từ chối upload với lỗi rõ; không chạy pipeline | G1, G10 |
-| R6 | ③ Ngoài phạm vi | PDF vượt 80 trang/50 MB hoặc mã hóa | Từ chối trước khi gọi model; gợi ý chia nhỏ/đổi file. PDF mã hóa hiện chưa có fixture automated nên giữ là rủi ro mở | G1, G10 |
-| R7 | ④ Đặc thù domain | Script dài/estimate lệch khiến video không khớp bài | Timeline lấy duration WAV thật; ghi warning khi estimate lệch lớn. Run representative ghi nhận lệch tổng -44,8% | G2, G11 |
-| R8 | ④ Đặc thù domain | Text/visual quá dày hoặc contrast kém làm người học không đọc được | Layout QA cảnh báo, fixed theme/safe area; fallback visual khi cần | G2, G8 |
-| R9 | ① Nguồn sự thật | PDF chứa instruction đánh lạc hướng model | Coi PDF là data, không làm theo instruction trong PDF; cần adversarial fixture trước CP6 | G10 |
-| R10 | ④ Đặc thù domain | TTS lỗi ở một scene | Retry tối đa ba lần; nếu cuối cùng vẫn lỗi thì ghi status/fallback, không âm thầm báo video hoàn hảo | G2, G11 |
+
+| ID  | Lớp                         | Tình huống cụ thể                                                            | Hành vi mong muốn                                                                                                                      | Nguyên tắc |
+| --- | ---------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| R1  | ① Nguồn sự thật          | Script có grounded claim nhưng không có`source_id`                           | Chặn artifact, chỉ repair chapter lỗi; không cho claim đi tiếp                                                                     | G10, G11     |
+| R2  | ① Nguồn sự thật          | Claim cite đúng trang nhưng nhầm element/chapter                             | Semantic/grounding validator đánh lỗi; retry scoped chapter, lưu trace                                                               | G2, G10      |
+| R3  | ② Mơ hồ/thiếu thông tin | Trang có chữ/ảnh khó đọc                                                   | Gắn warning và cho user xem trang/thumbnail; không biến đoạn đó thành fact chắc chắn                                          | G2, G10      |
+| R4  | ② Mơ hồ/thiếu thông tin | Cần`CROP_AND_HIGHLIGHT` nhưng không có bounding box                          | Hạ về`ORIGINAL_PAGE`, ghi warning thay vì bịa tọa độ                                                                              | G10, G11     |
+| R5  | ③ Ngoài phạm vi           | User upload file không phải PDF hoặc không có PDF magic bytes               | Từ chối upload với lỗi rõ; không chạy pipeline                                                                                    | G1, G10      |
+| R6  | ③ Ngoài phạm vi           | PDF vượt 80 trang/50 MB hoặc mã hóa                                         | Từ chối trước khi gọi model; gợi ý chia nhỏ/đổi file. PDF mã hóa hiện chưa có fixture automated nên giữ là rủi ro mở | G1, G10      |
+| R7  | ④ Đặc thù domain         | Script dài/estimate lệch khiến video không khớp bài                        | Timeline lấy duration WAV thật; ghi warning khi estimate lệch lớn. Run representative ghi nhận lệch tổng -44,8%                   | G2, G11      |
+| R8  | ④ Đặc thù domain         | Text/visual quá dày hoặc contrast kém làm người học không đọc được | Layout QA cảnh báo, fixed theme/safe area; fallback visual khi cần                                                                    | G2, G8       |
+| R9  | ① Nguồn sự thật          | PDF chứa instruction đánh lạc hướng model                                  | Coi PDF là data, không làm theo instruction trong PDF; cần adversarial fixture trước CP6                                           | G10          |
+| R10 | ④ Đặc thù domain         | TTS lỗi ở một scene                                                           | Retry tối đa ba lần; nếu cuối cùng vẫn lỗi thì ghi status/fallback, không âm thầm báo video hoàn hảo                      | G2, G11      |
 
 ## §6. Bốn đường đi của trải nghiệm
 
-| Đường đi | Trigger | User thấy/gặp | Kết quả kiểm được |
-|---|---|---|---|
-| Happy path | PDF có cấu trúc rõ, trong giới hạn | Upload → review outline → approve → video/chapter/SRT/coverage | PDF representative: 45/45 trang, 84/84 segment, MP4 playable |
-| Low-confidence | OCR/analysis đánh dấu trang/nguồn không chắc | Warning, thumbnail, coverage; user xem/sửa outline trước khi render | Không biến warning thành grounded claim |
-| Failure/không căn cứ | Thiếu source hoặc validator phát hiện claim/citation sai | Chặn/repair artifact liên quan, không cho completed output che lỗi | Validator/retry theo chapter và log kết quả |
-| Correction | User thấy thứ tự/mục tiêu chưa phù hợp | Sửa outline rồi approve; original plan còn lưu để đối chiếu | Module 3–6 chạy từ plan đã duyệt |
-| Đòi ngoài phạm vi | Không phải PDF, vượt limit, file không hợp lệ | Hệ thống nói rõ giới hạn và không chạy | API validation/error status |
-| Case domain | Estimate voice lệch nhiều hoặc TTS lỗi | Timeline dùng audio thật; warning được giữ trong manifest/eval | Không dùng estimate sai để quyết định duration video |
+
+| Đường đi            | Trigger                                                      | User thấy/gặp                                                        | Kết quả kiểm được                                      |
+| ----------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Happy path              | PDF có cấu trúc rõ, trong giới hạn                     | Upload → review outline → approve → video/chapter/SRT/coverage      | PDF representative: 45/45 trang, 84/84 segment, MP4 playable |
+| Low-confidence          | OCR/analysis đánh dấu trang/nguồn không chắc           | Warning, thumbnail, coverage; user xem/sửa outline trước khi render | Không biến warning thành grounded claim                   |
+| Failure/không căn cứ | Thiếu source hoặc validator phát hiện claim/citation sai | Chặn/repair artifact liên quan, không cho completed output che lỗi | Validator/retry theo chapter và log kết quả               |
+| Correction              | User thấy thứ tự/mục tiêu chưa phù hợp               | Sửa outline rồi approve; original plan còn lưu để đối chiếu   | Module 3–6 chạy từ plan đã duyệt                       |
+| Đòi ngoài phạm vi   | Không phải PDF, vượt limit, file không hợp lệ         | Hệ thống nói rõ giới hạn và không chạy                        | API validation/error status                                  |
+| Case domain             | Estimate voice lệch nhiều hoặc TTS lỗi                   | Timeline dùng audio thật; warning được giữ trong manifest/eval   | Không dùng estimate sai để quyết định duration video  |
 
 ## §7. Kiểm thử
 
 ### Chiều chất lượng và định nghĩa chấm
 
-| Chiều | Pass khi | Cách kiểm |
-|---|---|---|
-| Grounding/traceability | 100% grounded claim trong case có `source_id` hợp lệ và không cite sai element | Zod + Grounding Validator + semantic review; auditor mở source trace |
-| Coverage | FULL có 100% page/source được phân loại; warning vẫn hiện thay vì bị bỏ qua | coverage manifest và report |
-| Media integrity | Không có scene `FAILED`; MP4 có H.264/AAC, audio; SRT monotonic; timestamp nằm trong duration | manifest, FFprobe, subtitle validator |
-| UX safety | File ngoài phạm vi bị chặn rõ; user duyệt outline trước khi sinh video | API test + browser E2E |
-| Learning usability | Một người ngoài nhóm tìm đúng chapter/trang và nêu được chỗ không tin/khó theo dõi | CP5 quan sát task 10 phút; hiện **chưa đo**, không claim pass |
+
+| Chiều                 | Pass khi                                                                                            | Cách kiểm                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Grounding/traceability | 100% grounded claim trong case có`source_id` hợp lệ và không cite sai element                  | Zod + Grounding Validator + semantic review; auditor mở source trace |
+| Coverage               | FULL có 100% page/source được phân loại; warning vẫn hiện thay vì bị bỏ qua              | coverage manifest và report                                          |
+| Media integrity        | Không có scene`FAILED`; MP4 có H.264/AAC, audio; SRT monotonic; timestamp nằm trong duration    | manifest, FFprobe, subtitle validator                                 |
+| UX safety              | File ngoài phạm vi bị chặn rõ; user duyệt outline trước khi sinh video                      | API test + browser E2E                                                |
+| Learning usability     | Một người ngoài nhóm tìm đúng chapter/trang và nêu được chỗ không tin/khó theo dõi | CP5 quan sát task 10 phút; hiện**chưa đo**, không claim pass    |
 
 ### Golden set và quality bar
 
@@ -155,13 +161,14 @@ Lý do theo cost-of-error: một lời giảng bịa hoặc gán sai trang có t
 
 Repo hiện không có danh sách thành viên/mã học viên; **không tự điền tên để tránh bịa thông tin cá nhân.** Trước khi nộp, nhóm phải thay các ô dưới đây bằng tên thật trong `README.md` và giữ một người chịu trách nhiệm mỗi artifact.
 
-| Vai trò | Người phụ trách | Artifact/đầu ra |
-|---|---|---|
-| Spec + evidence | `Phạm Đình Minh` | `spec.md`, `evidence/mining-log.md` |
-| Eval/prompt | `Đồng Đại Huy` | `eval/golden-set-v1.md`, run log, failure analysis |
-| Backend/pipeline | `Nguyễn Đình Bình` | `ai-lecture-video/src/`, contract/validator |
-| Web/demo | `Nguyễn Quang Tường` | `ai-lecture-video/frontend/`, dry run |
-| Validation | `Phạm Đức Trung` | `validation/feedback-log.md` tại CP5 |
+
+| Vai trò         | Người phụ trách     | Artifact/đầu ra                                  |
+| ---------------- | ----------------------- | -------------------------------------------------- |
+| Spec + evidence  | `Phạm Đình Minh`     | `spec.md`, `evidence/mining-log.md`                |
+| Eval/prompt      | `Đồng Đại Huy`      | `eval/golden-set-v1.md`, run log, failure analysis |
+| Backend/pipeline | `Nguyễn Đình Bình`  | `codebase/src/`, contract/validator                |
+| Web/demo         | `Nguyễn Quang Tường` | `codebase/frontend/`, dry run                      |
+| Validation       | `Phạm Đức Trung`     | `validation/feedback-log.md` tại CP5              |
 
 ### Willing users và validation CP5
 
@@ -175,9 +182,10 @@ Task 10 phút: “Hãy dùng PDF này để tìm lại phần bạn cần học 
 
 ## §9. Changelog
 
-| Thời điểm | Đổi gì | Vì sao / bằng chứng |
-|---|---|---|
-| 2026-07-30 | Khởi tạo spec CP4, neo pain vào mining log thay vì nói chung “người học cần video” | `evidence/mining-log.md`; 141 lượt có từ khóa tổng hợp và 49 refusal theo rule |
-| 2026-07-30 | Chốt quality bar 90%, thêm 20-case golden set và run log | `eval/golden-set-v1.md`, `eval/run-01-2026-07-30.md` |
-| 2026-07-30 | Giữ duration estimate lệch -44,8% là fail, không sửa số liệu | `ai-lecture-video/eval/module5b-lecture-02.md` |
-| CP5 (chưa thực hiện) | Cập nhật sau user validation và rerun toàn bộ set | Không được thay quality bar; chỉ bổ sung evidence/kết quả |
+
+| Thời điểm            | Đổi gì                                                                                     | Vì sao / bằng chứng                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2026-07-30              | Khởi tạo spec CP4, neo pain vào mining log thay vì nói chung “người học cần video” | `evidence/mining-log.md`; 141 lượt có từ khóa tổng hợp và 49 refusal theo rule |
+| 2026-07-30              | Chốt quality bar 90%, thêm 20-case golden set và run log                                   | `eval/golden-set-v1.md`, `eval/run-01-2026-07-30.md`                                   |
+| 2026-07-30              | Giữ duration estimate lệch -44,8% là fail, không sửa số liệu                           | `ai-lecture-video/eval/module5b-lecture-02.md`                                         |
+| CP5 (chưa thực hiện) | Cập nhật sau user validation và rerun toàn bộ set                                        | Không được thay quality bar; chỉ bổ sung evidence/kết quả                      |

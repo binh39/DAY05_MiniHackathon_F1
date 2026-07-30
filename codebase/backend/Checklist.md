@@ -334,8 +334,35 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] Module 7 nhận `01_document.json`, gọi Gemini với structured output và kiểm tra trang nguồn.
 - [x] Bản tóm tắt được cache ở `07_summary.json`.
 - [x] API PDF và tóm tắt kiểm tra Firebase ID token và quyền sở hữu tài liệu.
-- [x] Backend build và 58 unit/integration test đều đạt.
+- [x] Backend build và 62 unit/integration test đều đạt.
 - [x] Frontend production build đạt.
+
+## Q. Sửa lỗi duration khi tiếp tục pipeline
+
+- [x] Đối chiếu artifact thật của job lỗi: plan 255 giây, script 428 từ, TTS khoảng 130 giây.
+- [x] Module 1 giữ nguyên vì checksum, page/source và Document Intelligence không gây sai thời lượng.
+- [x] Module 2 giảm overhead chapter giả từ 18 giây xuống 2 giây và lập word budget theo 175 từ/phút.
+- [x] Module 3 dùng word budget 160–183 từ/phút, target 175 từ/phút và tăng prompt/cache version.
+- [x] Retry lỗi `DURATION_OUT_OF_RANGE` quay về Module 3, reset Module 3–6 và bypass generation cache.
+- [x] Module 4 tái tạo storyboard từ script mới; không dùng storyboard cũ.
+- [x] Module 5A/5B được reset đồng thời; voice cache thay đổi theo SSML và speaking rate.
+- [x] Module 5B đo duration thật và tự tái tổng hợp một lần nếu Module 6 không thể hiệu chỉnh an toàn.
+- [x] Module 6 tiếp tục là cổng chặn cuối, không xuất video ngoài khoảng người dùng chọn.
+- [x] Có regression test cho word budget 3–5 phút và TTS audio quá ngắn.
+- [x] Toàn bộ unit/integration test và frontend production build đều đạt.
+
+## R. Tolerance narration và xóa riêng video
+
+- [x] Word budget của Module 3 cho phép lệch tối đa 15% ở cả hai phía.
+- [x] Duration estimate của từng chapter cho phép lệch tối đa 25%.
+- [x] Regression case 286 từ so với 257 từ và 102 giây so với 84 giây được pass.
+- [x] Module 6 vẫn bắt buộc video cuối nằm trong option thời lượng người dùng chọn.
+- [x] Trang Video gọi API xóa video riêng, không gọi API xóa toàn bộ job.
+- [x] Xóa video chỉ xóa artifact Module 2–6 ở local và Firebase Storage.
+- [x] PDF gốc, Firebase input, `01_document.json`, ảnh trang và `07_summary.json` được giữ lại.
+- [x] Sau khi xóa video, job trở lại `DOCUMENT_READY` và vẫn xuất hiện trong thư viện tài liệu.
+- [x] Xóa tài liệu từ trang Tài liệu vẫn là thao tác xóa toàn bộ có xác nhận riêng.
+- [x] Backend đạt 62/62 test; frontend production build đạt.
 
 - [ ] M1 — PDF tạo được `01_document.json`.
 - [ ] M2 — Tạo được plan và script có căn cứ.
@@ -345,3 +372,181 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
   được kiểm thử bằng backend và browser thật; Phase 10/user validation chưa hoàn
   tất nên chưa đạt định nghĩa milestone trong `Tasks.md`.
 - [ ] M6 — Golden set, user validation và demo hoàn tất.
+
+## S. Public deployment trên Google Cloud
+
+### S0. Trạng thái sẵn sàng hiện tại
+
+- [x] Đã có Google Cloud project và billing/free credit.
+- [x] Đã đăng nhập `gcloud` và Application Default Credentials cho local development.
+- [x] Đã chọn region chính `asia-southeast1`.
+- [x] Firebase Authentication online đã hoạt động.
+- [x] Backend đã tích hợp Firestore và Firebase Storage ở mức ứng dụng.
+- [x] Frontend production build thành công.
+- [x] Backend unit/integration test đang đạt 62/62.
+- [x] Backend có chế độ cloud-native: Firestore repository, Cloud Storage artifact và Cloud Run Job dispatcher; chế độ local chỉ dùng cho development/test.
+- [x] Đã có Dockerfile production chứa Node.js, FFmpeg, Chromium/Remotion và font tiếng Việt.
+
+### S1. Chốt kiến trúc production — P0
+
+- [ ] Frontend tĩnh chạy trên Firebase Hosting.
+- [ ] Backend HTTP/API chạy trên Cloud Run Service.
+- [ ] Pipeline Module 1–6 chạy bất đồng bộ bằng Cloud Run Job, không chạy dài trong HTTP request.
+- [ ] Firestore là nguồn dữ liệu chính duy nhất cho job/status/module progress/quota.
+- [ ] Cloud Storage là nguồn lưu trữ chính duy nhất cho PDF, page assets, summary, MP4 và artifact.
+- [ ] API tạo video trả `202 Accepted` nhanh và kích hoạt worker theo `jobId`.
+- [ ] Frontend tiếp tục polling trạng thái hoặc nghe Firestore; không giữ HTTP request đến khi render xong.
+- [ ] Video/PDF được cấp signed URL có thời hạn; bucket không public.
+- [ ] Chốt naming cho môi trường: `lecture-api`, `lecture-worker`, bucket và collection production.
+- [ ] Chốt `asia-southeast1` cho Cloud Run, Cloud Run Jobs, Artifact Registry và Cloud Build.
+- [ ] Kiểm tra location hiện tại của Firestore và Storage bucket để tránh latency/egress không cần thiết.
+
+### S2. Tách dữ liệu khỏi filesystem local — P0
+
+- [x] Thay JobStore JSON local bằng Firestore repository dùng thật ở production.
+- [x] Không dùng dữ liệu trong memory của API làm queue hoặc nguồn trạng thái chính.
+- [x] Upload PDF bằng stream lên Cloud Storage, chỉ lưu object path trong Firestore và xóa file staging của API ở cloud mode.
+- [x] Worker download input/artifact cần thiết vào thư mục tạm khi bắt đầu execution.
+- [x] Worker upload run artifact lên Cloud Storage sau mỗi module hoàn tất và đồng bộ lần cuối khi execution kết thúc.
+- [x] Worker cập nhật trạng thái Module 1–6, progress, warning và error vào Firestore.
+- [x] Khi worker kết thúc, không phụ thuộc vào dữ liệu còn lại trong `/tmp` hoặc container filesystem.
+- [x] Resume/retry đọc artifact đã hoàn thành từ Cloud Storage thay vì `runs/<jobId>` local.
+- [x] Module 7 đọc `01_document.json` từ Cloud Storage và ghi `07_summary.json` trở lại Storage.
+- [x] Xóa video chỉ xóa object Module 2–6; giữ PDF, Module 1, page assets và summary.
+- [x] Xóa tài liệu xóa toàn bộ object/job thuộc đúng owner.
+- [ ] Thiết lập lifecycle rule cho artifact cũ theo chính sách retention.
+
+### S3. Docker hóa backend và worker — P0
+
+- [x] Tạo Dockerfile production theo multi-stage build.
+- [x] Pin Node.js 22 tương thích với project.
+- [x] Cài FFmpeg/FFprobe trong image và có build-time verification.
+- [x] Cài Chromium và cấu hình Remotion dùng browser executable trong image.
+- [x] Đóng gói Noto font hỗ trợ tiếng Việt và có build-time font verification.
+- [x] Chạy container bằng non-root user `node`.
+- [x] Thêm health endpoint và Docker healthcheck cho Cloud Run API.
+- [x] Tách entrypoint `api` và `worker`, dùng chung một image/version.
+- [x] Worker nhận `PIPELINE_JOB_ID`, đọc cấu hình từ Firestore rồi thoát với exit code rõ ràng.
+- [x] Không copy `.env`, ADC local, secret hoặc file credential vào image.
+- [x] Thêm `.dockerignore` cho `node_modules`, `runs`, `outputs`, `.cache`, `.env` và file upload.
+- [ ] Build và chạy thử Docker local với một PDF ngắn.
+- [ ] Xác minh MP4, audio, Chromium và font trong container trước khi deploy.
+
+### S4. Google Cloud resources — P0
+
+- [ ] Bật Cloud Run API.
+- [ ] Bật Cloud Build API.
+- [ ] Bật Artifact Registry API.
+- [ ] Bật Cloud Run Admin API/Jobs API cần thiết.
+- [ ] Bật Secret Manager API.
+- [ ] Bật Cloud Logging và Monitoring cần thiết.
+- [ ] Tạo Artifact Registry repository tại `asia-southeast1`.
+- [ ] Tạo service account riêng cho Cloud Run API.
+- [ ] Tạo service account riêng cho Cloud Run worker.
+- [ ] Cấp API service account quyền Firestore/Storage tối thiểu và quyền chạy Cloud Run Job.
+- [ ] Cấp worker service account quyền Vertex AI, Text-to-Speech, Firestore và Storage tối thiểu.
+- [ ] Không cấp Owner/Editor cho runtime service accounts.
+- [ ] Lưu secret nhạy cảm trong Secret Manager; biến cấu hình không nhạy cảm dùng Cloud Run env vars.
+- [ ] Ghi lại toàn bộ resource name, region và service account trong tài liệu deployment.
+
+### S5. Deploy Cloud Run API Service — P0
+
+- [ ] Build image và push lên Artifact Registry với tag commit SHA, không chỉ dùng `latest`.
+- [ ] Deploy API service tại `asia-southeast1`.
+- [ ] API chỉ xử lý request ngắn: auth, upload, CRUD, status, retry và tạo execution.
+- [ ] Cấu hình khoảng 1 CPU, 512 MiB–1 GiB RAM để bắt đầu.
+- [ ] Cấu hình min instances `0`, max instances nhỏ trong giai đoạn dùng thử.
+- [ ] Cấu hình concurrency ban đầu khoảng 20–40 cho API và đo lại bằng thực tế.
+- [ ] Cấu hình request timeout khoảng 60–120 giây; không dùng timeout dài để render video.
+- [ ] Cho phép public ingress nhưng mọi API dữ liệu vẫn kiểm tra Firebase ID token và owner.
+- [ ] Cấu hình CORS chỉ cho domain Firebase Hosting/preview/local được phép.
+- [ ] Kiểm tra `/api/health`, login, upload, list job và delete bằng URL Cloud Run thật.
+- [ ] Xác minh log request không chứa token, signed URL hoặc nội dung secret.
+
+### S6. Deploy Cloud Run Job worker — P0
+
+- [ ] Tạo Cloud Run Job từ cùng image backend hoặc image worker riêng đã pin version.
+- [ ] Cấu hình ban đầu 2–4 CPU và 4–8 GiB RAM; đo lại khi render PDF 80 trang.
+- [ ] Cấu hình task timeout 60–90 phút cho demo.
+- [ ] Cấu hình task retries `0` hoặc `1` để tránh nhân đôi chi phí ngoài ý muốn.
+- [ ] Mỗi task chỉ xử lý một `jobId`.
+- [ ] Giới hạn số execution đồng thời trong giai đoạn public test.
+- [ ] API truyền `jobId` an toàn khi tạo execution; worker tự tải dữ liệu từ Firestore/Storage.
+- [ ] Worker cập nhật heartbeat/progress để nhận diện task treo.
+- [ ] Worker xử lý idempotent: chạy lại không tạo duplicate job hoặc ghi đè sai artifact.
+- [ ] Cancel trên UI có thể dừng/đánh dấu hủy execution tương ứng.
+- [ ] Retry bắt đầu đúng module và tái sử dụng artifact Cloud Storage hợp lệ.
+- [ ] Xác minh một execution hoàn chỉnh từ PDF đến MP4 trên Cloud Run Job.
+
+### S7. Firebase Hosting frontend — P0
+
+- [ ] Tạo cấu hình production cho `VITE_API_BASE_URL` trỏ tới Cloud Run API.
+- [ ] Thêm domain Firebase Hosting vào Firebase Authentication Authorized domains.
+- [ ] Cấu hình Firebase Hosting phục vụ thư mục `frontend/dist`.
+- [ ] Cấu hình SPA rewrite về `index.html` cho client-side routing.
+- [ ] Không proxy upload/render dài qua Hosting rewrite nếu có nguy cơ chạm timeout.
+- [ ] Build frontend bằng production Firebase config.
+- [ ] Deploy lên URL `PROJECT_ID.web.app`.
+- [ ] Kiểm tra login/register/logout trên domain public.
+- [ ] Kiểm tra upload PDF, tạo video, summary, xem video và xóa video trên domain public.
+- [ ] Tạo Firebase Hosting preview channel cho thay đổi trước production.
+- [ ] Chỉ gắn custom domain sau khi luồng mặc định chạy ổn định.
+
+### S8. CI/CD và cập nhật phiên bản — P1
+
+- [ ] Đưa `codebase/frontend` và `codebase/backend` vào Git repository rõ ràng.
+- [ ] Chọn branch flow: pull request → preview/staging → merge `main` → production.
+- [ ] Cloud Build chạy backend typecheck/test trước khi build image.
+- [ ] Cloud Build push image lên Artifact Registry với `$COMMIT_SHA`.
+- [ ] Cloud Build deploy revision mới cho Cloud Run API.
+- [ ] Cloud Build cập nhật image của Cloud Run Job cùng commit/version.
+- [ ] GitHub Action build frontend và tạo Firebase Hosting preview cho pull request.
+- [ ] Merge vào `main` mới deploy Firebase Hosting live.
+- [ ] Không dùng service-account JSON key trong GitHub; dùng Workload Identity Federation.
+- [ ] Có bước manual approval cho production trong giai đoạn đầu.
+- [ ] Ghi version frontend/backend/worker vào health hoặc metadata để debug lệch revision.
+- [ ] Thử rollback Cloud Run revision và Firebase Hosting version trước khi mời người dùng.
+
+### S9. Security, abuse và chi phí — P0 trước khi public
+
+- [ ] Bật budget và email alert theo các mốc phù hợp với khoản credit hiện có.
+- [ ] Đặt quota theo user cho số job đang chạy, số phút video và dung lượng lưu trữ.
+- [ ] Đặt max instances/executions để lỗi hoặc abuse không tiêu hết credit.
+- [ ] Bật rate limit cho upload, retry, summary và tạo video.
+- [ ] Chỉ user đã xác thực mới được upload hoặc tạo job.
+- [ ] Kiểm tra owner ở mọi PDF/video/artifact/status/delete endpoint.
+- [ ] Bucket không public; dùng signed URL ngắn hạn cho download/stream.
+- [ ] Kiểm tra PDF magic bytes, kích thước 50 MB và tối đa 80 trang ở backend.
+- [ ] Thêm Firebase App Check hoặc lớp chống abuse tương đương sau MVP.
+- [ ] Thiết lập log-based alert cho error rate, worker failure, timeout và quota spike.
+- [ ] Thiết lập retention và nút xóa dữ liệu người dùng hoạt động trên Firestore/Storage thật.
+- [ ] Viết privacy notice ngắn về việc PDF được gửi tới Gemini/TTS và thời gian lưu trữ.
+
+### S10. Staging và production validation — P0
+
+- [ ] Ưu tiên tạo project staging riêng; nếu chưa đủ thời gian thì tách resource/prefix dev và prod.
+- [ ] Deploy staging trước production.
+- [ ] Chạy smoke test PDF 1–3 trang.
+- [ ] Chạy test PDF đại diện 29 trang.
+- [ ] Chạy test gần giới hạn 80 trang.
+- [ ] Kiểm tra đủ các option thời lượng, ngôn ngữ, giọng đọc, phong cách và tỉ lệ.
+- [ ] Kiểm tra retry Module 3–6 trên cloud.
+- [ ] Kiểm tra xóa video giữ PDF và xóa tài liệu xóa toàn bộ trên cloud.
+- [ ] Kiểm tra restart/scale-to-zero không làm mất job hoặc artifact.
+- [ ] Kiểm tra hai user không đọc/xóa được dữ liệu của nhau.
+- [ ] Kiểm tra signed URL hết hạn đúng.
+- [ ] Kiểm tra chi phí của ít nhất ba video đại diện.
+- [ ] Mời nhóm nhỏ 3–5 người dùng thử trước khi public rộng.
+
+### S11. Điều kiện Go Live
+
+- [ ] Không còn dữ liệu bắt buộc nào chỉ tồn tại trên filesystem Cloud Run.
+- [ ] API trả nhanh và video pipeline chạy hoàn toàn bất đồng bộ.
+- [ ] Một PDF tạo video end-to-end thành công trên production.
+- [ ] Retry/cancel/delete đã được xác minh bằng resource thật.
+- [ ] Firebase Auth, Firestore rules, Storage access và IAM đã được kiểm tra.
+- [ ] CI/CD deploy được frontend, API và worker từ một commit xác định.
+- [ ] Rollback đã được thử thành công.
+- [ ] Budget alert, quota, max instances và retention đã bật.
+- [ ] Có trang hoặc thông báo hỗ trợ khi job lỗi.
+- [ ] Có checklist demo và tài khoản test không chứa dữ liệu nhạy cảm.

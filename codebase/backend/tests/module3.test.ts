@@ -8,6 +8,11 @@ import type {
   DocumentArtifact,
   LecturePlanArtifact,
 } from "../src/core/contracts.js";
+import {
+  chapterWordBudget,
+  estimateSpokenDurationSeconds,
+  tolerantChapterWordBudget,
+} from "../src/modules/module3_script_generator/duration-budget.js";
 import { validateScript } from "../src/modules/module3_script_generator/grounding-validator.js";
 import {
   createScriptCacheKey,
@@ -40,6 +45,70 @@ const config: PipelineConfig = {
   },
   render: { width: 1920, height: 1080, fps: 30 },
 };
+
+test("duration budget targets real neural TTS speech density", () => {
+  const budget = chapterWordBudget(255);
+  assert.deepEqual(budget, {
+    minimum: 680,
+    target: 744,
+    maximum: 778,
+  });
+  assert.equal(
+    estimateSpokenDurationSeconds(
+      Array.from({ length: budget.target }, () => "từ").join(" "),
+    ),
+    256,
+  );
+});
+
+test("duration validation tolerates a small model overrun", () => {
+  assert.equal(tolerantChapterWordBudget(84).maximum, 296);
+  const tolerantPlan: LecturePlanArtifact = {
+    ...lecturePlan,
+    estimated_duration_seconds: 84,
+    chapters: [
+      {
+        ...lecturePlan.chapters[0]!,
+        duration_seconds: 84,
+      },
+    ],
+  };
+  const narrations = validDecision.narrations.map((narration, index) => ({
+    ...narration,
+    text: Array.from(
+      { length: index < 4 ? 48 : 47 },
+      () => "từ",
+    ).join(" "),
+  }));
+  const script = buildScriptArtifact(
+    "Process",
+    "vi",
+    tolerantPlan,
+    new Map([
+      [
+        "ch_01",
+        {
+          ...validDecision,
+          narrations,
+        },
+      ],
+    ]),
+    { issues: [] },
+  );
+
+  assert.equal(
+    narrations.reduce(
+      (total, narration) =>
+        total + narration.text.split(/\s+/u).length,
+      0,
+    ),
+    286,
+  );
+  assert.equal(script.estimated_duration_seconds, 102);
+  assert.doesNotThrow(() =>
+    validateScript(script, document, tolerantPlan),
+  );
+});
 
 const document: DocumentArtifact = {
   schema_version: "1.0",

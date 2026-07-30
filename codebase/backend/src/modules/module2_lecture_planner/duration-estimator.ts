@@ -10,6 +10,9 @@ import type {
 
 type Source = DocumentArtifact["sources"][number];
 
+const PLANNED_SPEECH_WORDS_PER_MINUTE = 175;
+export const CHAPTER_TRANSITION_SECONDS = 2;
+
 const explainWords: Record<Source["element_type"], number> = {
   TEXT: 90,
   IMAGE: 70,
@@ -165,7 +168,8 @@ export function buildLecturePlan(
       title: chapter.title,
       learning_objectives: chapter.learning_objectives,
       duration_seconds:
-        18 + items.reduce((total, item) => total + item.duration_seconds, 0),
+        CHAPTER_TRANSITION_SECONDS +
+        items.reduce((total, item) => total + item.duration_seconds, 0),
       source_ids: sourceIds,
       page_numbers: pages,
       items,
@@ -175,10 +179,13 @@ export function buildLecturePlan(
   const chapterBudgets = allocateIntegerBudget(
     targetSeconds,
     rawChapters.map((chapter) => chapter.duration_seconds),
-    rawChapters.map((chapter) => 18 + chapter.items.length),
+    rawChapters.map(
+      (chapter) => CHAPTER_TRANSITION_SECONDS + chapter.items.length,
+    ),
   );
   const chapters = rawChapters.map((chapter, chapterIndex) => {
-    const itemBudget = chapterBudgets[chapterIndex]! - 18;
+    const itemBudget =
+      chapterBudgets[chapterIndex]! - CHAPTER_TRANSITION_SECONDS;
     const itemDurations = allocateIntegerBudget(
       itemBudget,
       chapter.items.map((item) => item.duration_seconds),
@@ -191,7 +198,13 @@ export function buildLecturePlan(
         ...item,
         duration_seconds: durationSeconds,
         estimated_narration_words: teaches
-          ? Math.max(1, Math.floor((durationSeconds / 60) * 110))
+          ? Math.max(
+              1,
+              Math.floor(
+                (durationSeconds / 60) *
+                  PLANNED_SPEECH_WORDS_PER_MINUTE,
+              ),
+            )
           : 0,
       };
     });

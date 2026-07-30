@@ -13,8 +13,10 @@
     "fixture:pdf": "tsx src/scripts/create-sample-pdf.ts",
     "run": "tsx src/cli.ts run",
     "serve:api": "tsx src/server/index.ts",
+    "serve:prod": "node dist/src/server/index.js",
+    "worker:cloud": "node dist/src/server/cloud-worker.js",
     "firebase:deploy": "firebase deploy --only firestore:rules,storage",
-    "test": "npm run build && node --test dist/tests/contracts.test.js dist/tests/module1.test.js dist/tests/module2.test.js dist/tests/module3.test.js dist/tests/module4.test.js dist/tests/module5a.test.js dist/tests/module5b.test.js dist/tests/module6.test.js dist/tests/module7.test.js dist/tests/server.test.js"
+    "test": "npm run build && node --test dist/tests/contracts.test.js dist/tests/module1.test.js dist/tests/module2.test.js dist/tests/module3.test.js dist/tests/module4.test.js dist/tests/module5a.test.js dist/tests/module5b.test.js dist/tests/module6.test.js dist/tests/module7.test.js dist/tests/cloud-infrastructure.test.js dist/tests/server.test.js"
   },
   "dependencies": {
     "@fastify/cors": "11.3.0",
