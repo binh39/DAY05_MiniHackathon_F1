@@ -207,8 +207,10 @@ export async function createServer(
     await firebase?.deleteArtifacts?.(job);
     const module1MarkedCompleted =
       job.modules?.module1_document_intelligence.status === "COMPLETED";
-    if (module1MarkedCompleted && !job.run_directory) {
-      job = await materializeRunDirectory(job).catch(() => job);
+    if (module1MarkedCompleted) {
+      job = await materializeRunDirectory(job, ["01_document.json"]).catch(
+        () => job,
+      );
     }
     const candidateRunDirectory =
       module1MarkedCompleted && job.run_directory
@@ -359,19 +361,63 @@ export async function createServer(
     if (autoRunJobs) await dispatcher.dispatch(jobId);
   }
 
-  async function materializeRunDirectory(job: JobRecord): Promise<JobRecord> {
-    if (job.run_directory) {
-      const exists = await stat(job.run_directory).then(() => true).catch(() => false);
-      if (exists) return job;
+  async function createAndDispatch(job: JobRecord): Promise<void> {
+    await store.create(job);
+    try {
+      await dispatchJob(job.id);
+    } catch (error) {
+      await firebase?.deleteJob?.(job).catch(() => undefined);
+      await store.delete(job.id).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async function runDirectoryHasArtifacts(
+    runDirectory: string,
+    requiredArtifacts: string[],
+  ): Promise<boolean> {
+    const exists = await stat(runDirectory)
+      .then((entry) => entry.isDirectory())
+      .catch(() => false);
+    if (!exists) return false;
+    return (
+      await Promise.all(
+        requiredArtifacts.map((artifact) =>
+          stat(path.join(runDirectory, artifact))
+            .then((entry) => entry.isFile())
+            .catch(() => false),
+        ),
+      )
+    ).every(Boolean);
+  }
+
+  async function materializeRunDirectory(
+    job: JobRecord,
+    requiredArtifacts: string[] = [],
+  ): Promise<JobRecord> {
+    if (
+      job.run_directory &&
+      (await runDirectoryHasArtifacts(job.run_directory, requiredArtifacts))
+    ) {
+      return job;
     }
     if (!firebase?.downloadRunDirectory || !job.cloud_storage?.run_prefix) {
-      throw new Error("Job chưa có run artifacts khả dụng.");
+      const missing = requiredArtifacts.length
+        ? ` Thiếu: ${requiredArtifacts.join(", ")}.`
+        : "";
+      throw new Error(`Job chưa có run artifacts khả dụng.${missing}`);
     }
     const runDirectory = path.join(projectDirectory, "runs", job.run_id);
-    const cached = await stat(runDirectory).then(() => true).catch(() => false);
-    if (cached) return store.update(job.id, { run_directory: runDirectory });
+    if (await runDirectoryHasArtifacts(runDirectory, requiredArtifacts)) {
+      return store.update(job.id, { run_directory: runDirectory });
+    }
     await mkdir(runDirectory, { recursive: true });
     await firebase.downloadRunDirectory(job, runDirectory);
+    if (!(await runDirectoryHasArtifacts(runDirectory, requiredArtifacts))) {
+      throw new Error(
+        `Run artifacts trên Cloud Storage chưa đầy đủ. Thiếu: ${requiredArtifacts.join(", ")}.`,
+      );
+    }
     return store.update(job.id, { run_directory: runDirectory });
   }
 
@@ -391,7 +437,11 @@ export async function createServer(
   }
 
   async function loadOutlineArtifacts(job: JobRecord) {
-    job = await materializeRunDirectory(job);
+    job = await materializeRunDirectory(job, [
+      "00_config.json",
+      "01_document.json",
+      "02_lecture_plan.json",
+    ]);
     const runDirectory = safeRunDirectory(projectDirectory, job);
     const [document, plan, config] = await Promise.all([
       readFile(path.join(runDirectory, "01_document.json"), "utf8").then(
@@ -408,7 +458,11 @@ export async function createServer(
   }
 
   async function loadResultArtifacts(job: JobRecord) {
-    job = await materializeRunDirectory(job);
+    job = await materializeRunDirectory(job, [
+      "01_document.json",
+      "02_lecture_plan.json",
+      "06_video_manifest.json",
+    ]);
     const runDirectory = safeRunDirectory(projectDirectory, job);
     const [document, plan, manifest] = await Promise.all([
       readFile(path.join(runDirectory, "01_document.json"), "utf8").then(
@@ -593,8 +647,7 @@ export async function createServer(
           input: await firebase.uploadInput(job),
         };
       }
-      await store.create(job);
-      await dispatchJob(id);
+      await createAndDispatch(job);
       if (cloudPersistence) await unlink(uploadPath).catch(() => undefined);
       return reply.code(202).send(toPublicJob(job));
     } catch (error) {
@@ -685,8 +738,7 @@ export async function createServer(
       if (firebase) {
         job.cloud_storage = { input: await firebase.uploadInput(job) };
       }
-      await store.create(job);
-      await dispatchJob(id);
+      await createAndDispatch(job);
       if (cloudPersistence) await unlink(uploadPath).catch(() => undefined);
       return reply.code(202).send(toPublicJob(job));
     } catch (error) {
@@ -718,9 +770,11 @@ export async function createServer(
       if (!job || !ownsJob(job, user)) {
         return reply.code(404).send({ error: "DOCUMENT_NOT_FOUND" });
       }
-      if (job.stage === "DOCUMENT_READY" && !job.run_directory) {
+      if (job.stage === "DOCUMENT_READY") {
         const existingJob = job;
-        job = await materializeRunDirectory(existingJob).catch(() => existingJob);
+        job = await materializeRunDirectory(existingJob, [
+          "01_document.json",
+        ]).catch(() => existingJob);
       }
       if (job.stage !== "DOCUMENT_READY" || !job.run_directory) {
         return reply.code(409).send({
@@ -802,7 +856,13 @@ export async function createServer(
         if (!job || !ownsJob(job, user)) {
           return reply.code(404).send({ error: "DOCUMENT_NOT_FOUND" });
         }
-        const localJob = await materializeRunDirectory(job);
+        const localJob =
+          job.run_directory &&
+          (await runDirectoryHasArtifacts(job.run_directory, [
+            "07_summary.json",
+          ]))
+            ? job
+            : await materializeRunDirectory(job, ["01_document.json"]);
         const runDirectory = safeRunDirectory(projectDirectory, localJob);
         const summaryPath = path.join(runDirectory, "07_summary.json");
         try {
@@ -969,7 +1029,7 @@ export async function createServer(
       }
       const resumableJob =
         !job.run_directory && job.cloud_storage?.run_prefix
-          ? await materializeRunDirectory(job)
+          ? await materializeRunDirectory(job, ["01_document.json"])
           : job;
       const attempt = job.attempt + 1;
       const durationRepair =
@@ -1327,7 +1387,15 @@ export async function createServer(
       reply.header("X-Content-Type-Options", "nosniff");
       return reply.send(await firebase.downloadObject(cloudUri));
     }
-    const localJob = await materializeRunDirectory(job);
+    const requiredArtifact = {
+      video: "lecture.mp4",
+      subtitle: "lecture.srt",
+      coverage: "coverage-report.json",
+      thumbnail: "06_video_manifest.json",
+    } as const;
+    const localJob = await materializeRunDirectory(job, [
+      requiredArtifact[request.params.kind],
+    ]);
     const runDirectory = safeRunDirectory(projectDirectory, localJob);
     const staticArtifacts = {
       video: {

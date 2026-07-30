@@ -199,6 +199,52 @@ test("duration failure retries from script generation and bypasses stale cache",
   assert.ok(stored.approved_at);
 });
 
+test("dispatch failure rolls back job metadata and uploaded cloud input", async (t) => {
+  const directory = await temporaryDirectory(t);
+  let cloudDeleted = false;
+  const firebase: FirebaseServices = {
+    async verifyIdToken() {
+      return { uid: "local-development" };
+    },
+    async persistJob() {},
+    async uploadInput(job) {
+      return `gs://test/users/${job.owner_uid}/jobs/${job.id}/input.pdf`;
+    },
+    async uploadArtifacts() {
+      return {};
+    },
+    async deleteJob() {
+      cloudDeleted = true;
+    },
+  };
+  const server = await createServer(directory, {
+    backendDirectory: path.join(directory, "backend"),
+    firebaseServices: firebase,
+    jobDispatcher: {
+      async dispatch() {
+        throw new Error("dispatcher unavailable");
+      },
+    },
+  });
+  t.after(() => server.close());
+  const body = multipartPayload({
+    filename: "rollback.pdf",
+    mimetype: "application/pdf",
+    file: Buffer.from("%PDF-1.4\n%%EOF"),
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/api/documents",
+    headers: { "content-type": body.contentType },
+    payload: body.payload,
+  });
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().message, "dispatcher unavailable");
+  assert.equal(cloudDeleted, true);
+  const jobs = await server.inject({ method: "GET", url: "/api/jobs" });
+  assert.deepEqual(jobs.json().jobs, []);
+});
+
 test("saved document serves PDF and summary, then starts video from module 2", async (t) => {
   const directory = await temporaryDirectory(t);
   const backendDirectory = path.join(directory, "backend");
@@ -600,10 +646,6 @@ test("loads, edits and approves an outline before continuing the pipeline", asyn
       path.join(runDirectory, "01_document.json"),
       JSON.stringify(document),
     ),
-    writeFile(
-      path.join(runDirectory, "02_lecture_plan.json"),
-      JSON.stringify(plan),
-    ),
     writeFile(path.join(runDirectory, "00_config.json"), JSON.stringify(config)),
   ]);
   const now = new Date().toISOString();
@@ -628,15 +670,39 @@ test("loads, edits and approves an outline before continuing the pipeline", asyn
     },
     attempt: 1,
     run_directory: runDirectory,
+    cloud_storage: {
+      run_prefix: "gs://test/users/local-development/jobs/outline-job/run/",
+    },
     warnings: [],
   };
   await writeFile(
     path.join(backendDirectory, "jobs", `${job.id}.json`),
     JSON.stringify(job),
   );
+  let downloadCount = 0;
+  const firebase: FirebaseServices = {
+    async verifyIdToken() {
+      return { uid: "local-development" };
+    },
+    async persistJob() {},
+    async uploadInput() {
+      return "gs://test/input.pdf";
+    },
+    async uploadArtifacts() {
+      return {};
+    },
+    async downloadRunDirectory(_job, destination) {
+      downloadCount += 1;
+      await writeFile(
+        path.join(destination, "02_lecture_plan.json"),
+        JSON.stringify(plan),
+      );
+    },
+  };
   const server = await createServer(directory, {
     backendDirectory,
     autoRunJobs: false,
+    firebaseServices: firebase,
   });
   t.after(() => server.close());
 
@@ -645,6 +711,7 @@ test("loads, edits and approves an outline before continuing the pipeline", asyn
     url: `/api/jobs/${job.id}/outline`,
   });
   assert.equal(preview.statusCode, 200);
+  assert.equal(downloadCount, 1);
   assert.equal(preview.json().document.total_pages, 1);
   assert.equal(preview.json().plan.draft.chapters.length, 1);
 
