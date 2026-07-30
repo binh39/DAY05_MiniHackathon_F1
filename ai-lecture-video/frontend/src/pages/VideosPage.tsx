@@ -444,29 +444,31 @@ export function VideosPage() {
       {playing && (
         <div className="modal-backdrop video-modal-backdrop" onClick={() => setPlaying(null)}>
           <div className="video-player-modal" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setPlaying(null)}><X size={20} /></button>
-            {playing.videoUrl ? (
-              <video
-                ref={videoRef}
-                className="real-player"
-                controls
-                autoPlay
-                src={playing.videoUrl}
-                onTimeUpdate={updateActiveChapter}
-              />
-            ) : (
-              <div className={`fake-player theme-${playing.color}`}>
-                <div className="fake-player-copy">
-                  <small>LECTUREAI · BÀI GIẢNG</small>
-                  <strong>{playing.title}</strong>
-                  <span>{playing.documentName}</span>
+            <button className="modal-close" onClick={() => setPlaying(null)} aria-label="Đóng video"><X size={20} /></button>
+            <div className="video-viewer-stage">
+              {playing.videoUrl ? (
+                <video
+                  ref={videoRef}
+                  className="real-player"
+                  controls
+                  autoPlay
+                  src={playing.videoUrl}
+                  onTimeUpdate={updateActiveChapter}
+                />
+              ) : (
+                <div className={`fake-player theme-${playing.color}`}>
+                  <div className="fake-player-copy">
+                    <small>LECTUREAI · BÀI GIẢNG</small>
+                    <strong>{playing.title}</strong>
+                    <span>{playing.documentName}</span>
+                  </div>
+                  <button><Pause size={25} fill="currentColor" /></button>
+                  <div className="player-controls">
+                    <span>03:26</span><div><i /></div><span>{playing.duration}</span>
+                  </div>
                 </div>
-                <button><Pause size={25} fill="currentColor" /></button>
-                <div className="player-controls">
-                  <span>03:26</span><div><i /></div><span>{playing.duration}</span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
             {playing.jobId && (
               <div className="result-learning-panel">
                 {resultLoading ? (
