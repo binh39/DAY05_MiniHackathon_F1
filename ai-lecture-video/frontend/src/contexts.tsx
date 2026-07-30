@@ -6,7 +6,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { seedDocuments, seedVideos } from "./data";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import {
+  artifactBlobUrl,
+  cancelJob,
+  clearArtifactCache,
+  createJob,
+  listJobs,
+  retryJob,
+  type ApiJob,
+} from "./api";
+import { firebaseAuth, firebaseDb } from "./firebase";
 import type {
   AspectRatio,
   DocumentItem,
@@ -17,32 +35,75 @@ import type {
 
 interface AuthContextValue {
   user: User | null;
-  login: (email: string, name?: string) => void;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const USER_KEY = "lectureai-user";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem(USER_KEY);
-    return stored ? (JSON.parse(stored) as User) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  function login(email: string, name = "Minh Anh") {
-    const next = { email, name };
-    localStorage.setItem(USER_KEY, JSON.stringify(next));
-    setUser(next);
+  useEffect(
+    () =>
+      onAuthStateChanged(firebaseAuth, (firebaseUser) => {
+        setUser(
+          firebaseUser
+            ? {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email ?? "",
+                name:
+                  firebaseUser.displayName ??
+                  firebaseUser.email?.split("@")[0] ??
+                  "Học viên",
+              }
+            : null,
+        );
+        setLoading(false);
+      }),
+    [],
+  );
+
+  async function login(email: string, password: string) {
+    await signInWithEmailAndPassword(firebaseAuth, email, password);
   }
 
-  function logout() {
-    localStorage.removeItem(USER_KEY);
-    setUser(null);
+  async function register(name: string, email: string, password: string) {
+    const credential = await createUserWithEmailAndPassword(
+      firebaseAuth,
+      email,
+      password,
+    );
+    await updateProfile(credential.user, { displayName: name });
+    const now = new Date().toISOString();
+    await setDoc(doc(firebaseDb, "users", credential.user.uid), {
+      uid: credential.user.uid,
+      email,
+      display_name: name,
+      created_at: now,
+      updated_at: now,
+    });
+    await credential.user.reload();
+    setUser({ uid: credential.user.uid, email, name });
+  }
+
+  async function logout() {
+    clearArtifactCache();
+    await signOut(firebaseAuth);
+  }
+
+  async function resetPassword(email: string) {
+    await sendPasswordResetEmail(firebaseAuth, email);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, resetPassword, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -64,47 +125,123 @@ interface CreateVideoInput {
 interface LibraryContextValue {
   documents: DocumentItem[];
   videos: VideoItem[];
-  createVideo: (input: CreateVideoInput) => string;
-  removeDocument: (id: string) => void;
-  removeVideo: (id: string) => void;
+  createVideo: (input: CreateVideoInput) => Promise<string>;
+  retryVideo: (jobId: string) => Promise<void>;
+  cancelVideo: (jobId: string) => Promise<void>;
 }
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
-const DOCUMENTS_KEY = "lectureai-documents";
-const VIDEOS_KEY = "lectureai-videos";
-
-function loadItems<T>(key: string, fallback: T[]): T[] {
-  const stored = localStorage.getItem(key);
-  return stored ? (JSON.parse(stored) as T[]) : fallback;
-}
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
-  const [documents, setDocuments] = useState<DocumentItem[]>(() =>
-    loadItems(DOCUMENTS_KEY, seedDocuments),
-  );
-  const [videos, setVideos] = useState<VideoItem[]>(() =>
-    loadItems(VIDEOS_KEY, seedVideos),
-  );
+  const { user, loading: authLoading } = useAuth();
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
 
   useEffect(() => {
-    localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(documents));
-  }, [documents]);
-  useEffect(() => {
-    localStorage.setItem(VIDEOS_KEY, JSON.stringify(videos));
-  }, [videos]);
+    localStorage.removeItem("lectureai-documents");
+    localStorage.removeItem("lectureai-videos");
+  }, []);
 
-  function createVideo(input: CreateVideoInput) {
-    const id = `video-${Date.now()}`;
-    const documentId = `doc-${Date.now()}`;
+  async function mergeApiJobs(jobs: ApiJob[]) {
+    const remoteVideos: VideoItem[] = await Promise.all(
+      jobs.map(async (job) => ({
+        id: `job-${job.id}`,
+        title: job.fields.title || job.original_filename.replace(/\.pdf$/i, ""),
+        documentName: job.original_filename,
+        duration: `${job.fields.duration_option.replace("-", "–")} phút`,
+        ratio: job.fields.aspect_ratio,
+        createdAt:
+          job.status === "COMPLETED"
+            ? new Date(job.updated_at).toLocaleString("vi-VN")
+            : job.status === "FAILED"
+              ? "Xử lý thất bại"
+              : "Đang xử lý",
+        status:
+          job.status === "COMPLETED"
+            ? "ready"
+            : job.status === "AWAITING_APPROVAL"
+              ? "review"
+            : job.status === "FAILED" || job.status === "CANCELLED"
+              ? "failed"
+              : "processing",
+        progress: job.progress,
+        color: "blue",
+        error: job.error,
+        videoUrl: job.artifacts?.video
+          ? await artifactBlobUrl(job.artifacts.video)
+          : undefined,
+        subtitleUrl: job.artifacts?.subtitle
+          ? await artifactBlobUrl(job.artifacts.subtitle)
+          : undefined,
+        coverageUrl: job.artifacts?.coverage
+          ? await artifactBlobUrl(job.artifacts.coverage)
+          : undefined,
+        thumbnailUrl: job.artifacts?.thumbnail
+          ? await artifactBlobUrl(job.artifacts.thumbnail)
+          : undefined,
+        jobId: job.id,
+        stage: job.stage,
+        durationSeconds: job.result_duration_seconds,
+        hasFeedback: job.has_feedback,
+      })),
+    );
+    const remoteDocuments: DocumentItem[] = jobs.map((job) => ({
+      id: `job-doc-${job.id}`,
+      jobId: job.id,
+      name: job.original_filename,
+      size: `${(job.input_size_bytes / 1024 / 1024)
+        .toFixed(1)
+        .replace(".", ",")} MB`,
+      sizeBytes: job.input_size_bytes,
+      pages: job.document_pages,
+      uploadedAt: new Date(job.created_at).toLocaleString("vi-VN"),
+      status:
+        job.status === "QUEUED" || job.status === "RUNNING"
+          ? "analyzing"
+          : "ready",
+      color: "#7658f6",
+    }));
+    setVideos(remoteVideos);
+    setDocuments(remoteDocuments);
+  }
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      setVideos([]);
+      setDocuments([]);
+      return;
+    }
+    let stopped = false;
+    async function refresh() {
+      try {
+        const jobs = await listJobs();
+        if (!stopped) await mergeApiJobs(jobs);
+      } catch {
+        // Backend availability is surfaced when the user submits a job.
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 3_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [authLoading, user?.uid]);
+
+  async function createVideo(input: CreateVideoInput) {
+    const job = await createJob(input);
+    const id = `job-${job.id}`;
+    const documentId = `job-doc-${job.id}`;
     const size = `${(input.file.size / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
     setDocuments((current) => [
       {
         id: documentId,
+        jobId: job.id,
         name: input.file.name,
         size,
-        pages: Math.max(1, Math.round(input.file.size / 75_000)),
+        sizeBytes: input.file.size,
         uploadedAt: "Vừa xong",
-        status: "ready",
+        status: "analyzing",
         color: "#7658f6",
       },
       ...current,
@@ -118,29 +255,24 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         ratio: input.ratio,
         createdAt: "Đang xử lý",
         status: "processing",
-        progress: 18,
+        progress: job.progress,
         color: "blue",
+        jobId: job.id,
+        stage: job.stage,
       },
       ...current,
     ]);
-    window.setTimeout(() => {
-      setVideos((current) =>
-        current.map((video) =>
-          video.id === id
-            ? { ...video, status: "ready", progress: 100, createdAt: "Vừa xong" }
-            : video,
-        ),
-      );
-    }, 4500);
     return id;
   }
 
-  function removeDocument(id: string) {
-    setDocuments((current) => current.filter((item) => item.id !== id));
+  async function retryVideo(jobId: string) {
+    await retryJob(jobId);
+    await mergeApiJobs(await listJobs());
   }
 
-  function removeVideo(id: string) {
-    setVideos((current) => current.filter((item) => item.id !== id));
+  async function cancelVideo(jobId: string) {
+    await cancelJob(jobId);
+    await mergeApiJobs(await listJobs());
   }
 
   const value = useMemo(
@@ -148,8 +280,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       documents,
       videos,
       createVideo,
-      removeDocument,
-      removeVideo,
+      retryVideo,
+      cancelVideo,
     }),
     [documents, videos],
   );

@@ -1,32 +1,90 @@
 import {
+  AlertTriangle,
+  BookOpen,
   CheckCircle2,
+  CircleX,
   Clock3,
   Download,
   Film,
   Filter,
-  MoreHorizontal,
+  ListChecks,
+  MessageSquareText,
   Pause,
   Play,
   Plus,
   Search,
-  Share2,
-  Trash2,
+  Star,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import {
+  artifactBlobUrl,
+  getFeedback,
+  getResult,
+  saveFeedback,
+  type FeedbackInput,
+  type ResultDetail,
+} from "../api";
 import { useLibrary } from "../contexts";
 import { useNavigate, useRouter } from "../router";
 import type { VideoItem } from "../types";
 
+function formatTimestamp(seconds: number): string {
+  const rounded = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(rounded / 60);
+  return `${minutes}:${String(rounded % 60).padStart(2, "0")}`;
+}
+
+function emptyFeedback(): FeedbackInput {
+  return {
+    overall_rating: 5,
+    content_accuracy: "ACCURATE",
+    clarity_rating: 5,
+    duration_fit: "JUST_RIGHT",
+    would_use_again: true,
+    issue_details: "",
+    comment: "",
+  };
+}
+
 export function VideosPage() {
-  const { videos, removeVideo } = useLibrary();
+  const { videos, retryVideo, cancelVideo } = useLibrary();
   const navigate = useNavigate();
   const location = useRouter();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "ready" | "processing">("all");
+  const [filter, setFilter] = useState<
+    "all" | "ready" | "processing" | "review" | "failed"
+  >("all");
   const [playing, setPlaying] = useState<VideoItem | null>(null);
+  const [result, setResult] = useState<ResultDetail | null>(null);
+  const [resultLoading, setResultLoading] = useState(false);
+  const [resultError, setResultError] = useState("");
+  const [activeChapterId, setActiveChapterId] = useState("");
+  const [sourcePage, setSourcePage] = useState<{
+    page: number;
+    imageUrl: string;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackInput>(emptyFeedback);
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [hasSavedFeedback, setHasSavedFeedback] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [toast, setToast] = useState(
-    Boolean((location.state as { created?: boolean } | null)?.created),
+    Boolean(
+      (location.state as { created?: boolean; approved?: boolean } | null)
+        ?.created ||
+      (location.state as { created?: boolean; approved?: boolean } | null)
+        ?.approved,
+    ),
+  );
+  const approved = Boolean(
+    (location.state as { approved?: boolean } | null)?.approved,
   );
 
   useEffect(() => {
@@ -34,6 +92,43 @@ export function VideosPage() {
     const timer = window.setTimeout(() => setToast(false), 3800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    let stopped = false;
+    setResult(null);
+    setResultError("");
+    setSourcePage(null);
+    setFeedback(emptyFeedback());
+    setFeedbackMessage("");
+    setHasSavedFeedback(false);
+    if (!playing?.jobId || playing.status !== "ready") return;
+    setResultLoading(true);
+    void Promise.all([getResult(playing.jobId), getFeedback(playing.jobId)])
+      .then(([detail, savedFeedback]) => {
+        if (stopped) return;
+        setResult(detail);
+        setActiveChapterId(detail.chapters[0]?.chapter_id ?? "");
+        if (savedFeedback) {
+          setFeedback(savedFeedback);
+          setHasSavedFeedback(true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!stopped) {
+          setResultError(
+            error instanceof Error
+              ? error.message
+              : "Không thể tải thông tin chapter.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!stopped) setResultLoading(false);
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [playing?.jobId, playing?.status]);
 
   const filtered = useMemo(
     () =>
@@ -46,6 +141,69 @@ export function VideosPage() {
       ),
     [videos, filter, query],
   );
+  const activeChapter = useMemo(
+    () =>
+      result?.chapters.find(
+        (chapter) => chapter.chapter_id === activeChapterId,
+      ) ?? result?.chapters[0],
+    [activeChapterId, result],
+  );
+  const totalDurationSeconds = videos.reduce(
+    (total, video) => total + (video.durationSeconds ?? 0),
+    0,
+  );
+
+  function seekToChapter(chapter: ResultDetail["chapters"][number]) {
+    setActiveChapterId(chapter.chapter_id);
+    if (videoRef.current) {
+      videoRef.current.currentTime = chapter.start_seconds;
+      void videoRef.current.play();
+    }
+  }
+
+  function updateActiveChapter() {
+    const current = videoRef.current?.currentTime;
+    if (current === undefined || !result) return;
+    const chapter = [...result.chapters]
+      .reverse()
+      .find((item) => current >= item.start_seconds);
+    if (chapter) setActiveChapterId(chapter.chapter_id);
+  }
+
+  async function showSourcePage(pageNumber: number) {
+    const page = result?.pages.find((item) => item.page === pageNumber);
+    if (!page) return;
+    try {
+      setResultError("");
+      setSourcePage({
+        page: pageNumber,
+        imageUrl: await artifactBlobUrl(page.image_url),
+      });
+    } catch (error) {
+      setResultError(
+        error instanceof Error ? error.message : "Không thể tải trang nguồn.",
+      );
+    }
+  }
+
+  async function submitFeedback(event: FormEvent) {
+    event.preventDefault();
+    if (!playing?.jobId) return;
+    setFeedbackSaving(true);
+    setFeedbackMessage("");
+    try {
+      const saved = await saveFeedback(playing.jobId, feedback);
+      setFeedback(saved);
+      setHasSavedFeedback(true);
+      setFeedbackMessage("Phản hồi đã được lưu.");
+    } catch (error) {
+      setFeedbackMessage(
+        error instanceof Error ? error.message : "Không thể lưu phản hồi.",
+      );
+    } finally {
+      setFeedbackSaving(false);
+    }
+  }
 
   return (
     <div className="library-page videos-page page-enter">
@@ -53,8 +211,14 @@ export function VideosPage() {
         <div className="success-toast">
           <CheckCircle2 size={20} />
           <div>
-            <strong>Video đã được đưa vào hàng chờ</strong>
-            <span>Bạn có thể theo dõi tiến trình ngay tại đây.</span>
+            <strong>
+              {approved ? "Outline đã được duyệt" : "Tài liệu đã được đưa vào hàng chờ"}
+            </strong>
+            <span>
+              {approved
+                ? "Pipeline đang tiếp tục từ Module 3."
+                : "AI sẽ phân tích và gửi outline để bạn duyệt trước."}
+            </span>
           </div>
           <button onClick={() => setToast(false)}><X size={17} /></button>
         </div>
@@ -79,9 +243,16 @@ export function VideosPage() {
           <span className="summary-badge yellow"><Clock3 size={19} /></span>
           <div><strong>{videos.filter((v) => v.status === "processing").length}</strong><span>Đang xử lý</span></div>
         </div>
+        <div>
+          <span className="summary-badge purple"><ListChecks size={19} /></span>
+          <div><strong>{videos.filter((v) => v.status === "review").length}</strong><span>Chờ duyệt</span></div>
+        </div>
         <div className="minutes-created">
           <span>Thời lượng đã tạo</span>
-          <strong>28 phút 06 giây</strong>
+          <strong>
+            {Math.floor(totalDurationSeconds / 60)} phút{" "}
+            {Math.round(totalDurationSeconds % 60)} giây
+          </strong>
         </div>
       </div>
 
@@ -99,6 +270,8 @@ export function VideosPage() {
             ["all", "Tất cả"],
             ["ready", "Hoàn tất"],
             ["processing", "Đang xử lý"],
+            ["review", "Chờ duyệt"],
+            ["failed", "Lỗi"],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -126,6 +299,34 @@ export function VideosPage() {
                   onClick={() => setPlaying(video)}
                   aria-label="Xem video"
                 ><Play size={22} fill="currentColor" /></button>
+              ) : video.status === "review" ? (
+                <div className="processing-overlay review-overlay">
+                  <ListChecks size={30} />
+                  <strong>Outline đã sẵn sàng</strong>
+                  <small>Kiểm tra chapter trước khi tạo video.</small>
+                  {video.jobId && (
+                    <button
+                      className="review-button"
+                      onClick={() => navigate(`/app/outline/${video.jobId}`)}
+                    >
+                      Xem và duyệt outline
+                    </button>
+                  )}
+                </div>
+              ) : video.status === "failed" ? (
+                <div className="processing-overlay failed-overlay">
+                  <CircleX size={30} />
+                  <strong>Xử lý chưa thành công</strong>
+                  <small>{video.error ?? "Pipeline đã dừng."}</small>
+                  {video.jobId && (
+                    <button
+                      className="retry-button"
+                      onClick={() => void retryVideo(video.jobId!)}
+                    >
+                      Thử lại
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="processing-overlay">
                   <span className="spinner large" />
@@ -142,21 +343,47 @@ export function VideosPage() {
                   <strong>{video.title}</strong>
                   <p>{video.documentName}</p>
                 </div>
-                <button className="icon-button"><MoreHorizontal size={20} /></button>
               </div>
-              {video.status === "processing" ? (
-                <div className="processing-bar">
-                  <div><span>Đang dựng hình và lồng tiếng</span><strong>{video.progress ?? 18}%</strong></div>
-                  <div className="storage-track"><span style={{ width: `${video.progress ?? 18}%` }} /></div>
+              {video.status === "review" ? (
+                <div className="review-meta">
+                  <span>Module 1–2 hoàn tất · Đang chờ quyết định của bạn</span>
+                  {video.jobId && (
+                    <button onClick={() => navigate(`/app/outline/${video.jobId}`)}>
+                      Duyệt outline
+                    </button>
+                  )}
                 </div>
-              ) : (
+              ) : video.status === "processing" ? (
+                <div className="processing-bar">
+                  <div>
+                    <span>{video.stage === "QUEUED_AFTER_APPROVAL" ? "Đang chờ tiếp tục từ Module 3" : "Đang phân tích và tạo outline"}</span>
+                    <strong>{video.progress ?? 18}%</strong>
+                  </div>
+                  <div className="storage-track"><span style={{ width: `${video.progress ?? 18}%` }} /></div>
+                  {video.jobId && (
+                    <button
+                      className="cancel-job-button"
+                      onClick={() => void cancelVideo(video.jobId!)}
+                    >
+                      Hủy xử lý
+                    </button>
+                  )}
+                </div>
+              ) : video.status === "ready" ? (
                 <div className="video-actions">
                   <span>{video.createdAt}</span>
                   <div>
-                    <button title="Tải xuống"><Download size={17} /></button>
-                    <button title="Chia sẻ"><Share2 size={17} /></button>
-                    <button title="Xóa" onClick={() => removeVideo(video.id)}><Trash2 size={17} /></button>
+                    {video.hasFeedback && (
+                      <span className="feedback-saved-badge">Đã phản hồi</span>
+                    )}
+                    {video.videoUrl && (
+                      <a href={video.videoUrl} title="Tải xuống"><Download size={17} /></a>
+                    )}
                   </div>
+                </div>
+              ) : (
+                <div className="failed-meta">
+                  <span>Cần kiểm tra lỗi pipeline trước khi thử lại.</span>
                 </div>
               )}
             </div>
@@ -179,21 +406,342 @@ export function VideosPage() {
         <div className="modal-backdrop video-modal-backdrop" onClick={() => setPlaying(null)}>
           <div className="video-player-modal" onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" onClick={() => setPlaying(null)}><X size={20} /></button>
-            <div className={`fake-player theme-${playing.color}`}>
-              <div className="fake-player-copy">
-                <small>LECTUREAI · BÀI GIẢNG</small>
-                <strong>{playing.title}</strong>
-                <span>{playing.documentName}</span>
+            {playing.videoUrl ? (
+              <video
+                ref={videoRef}
+                className="real-player"
+                controls
+                autoPlay
+                src={playing.videoUrl}
+                onTimeUpdate={updateActiveChapter}
+              />
+            ) : (
+              <div className={`fake-player theme-${playing.color}`}>
+                <div className="fake-player-copy">
+                  <small>LECTUREAI · BÀI GIẢNG</small>
+                  <strong>{playing.title}</strong>
+                  <span>{playing.documentName}</span>
+                </div>
+                <button><Pause size={25} fill="currentColor" /></button>
+                <div className="player-controls">
+                  <span>03:26</span><div><i /></div><span>{playing.duration}</span>
+                </div>
               </div>
-              <button><Pause size={25} fill="currentColor" /></button>
-              <div className="player-controls">
-                <span>03:26</span><div><i /></div><span>{playing.duration}</span>
+            )}
+            {playing.jobId && (
+              <div className="result-learning-panel">
+                {resultLoading ? (
+                  <div className="result-panel-state">
+                    <span className="spinner" /> Đang tải chapter và nguồn...
+                  </div>
+                ) : resultError && !result ? (
+                  <div className="result-panel-state error">
+                    <AlertTriangle size={17} /> {resultError}
+                  </div>
+                ) : result ? (
+                  <>
+                    <div className="coverage-strip">
+                      <span>
+                        <strong>{Math.round(result.coverage.rate * 100)}%</strong>
+                        coverage
+                      </span>
+                      <span>
+                        <strong>{result.coverage.covered_pages}/{result.coverage.total_pages}</strong>
+                        trang được dạy
+                      </span>
+                      <span>
+                        <strong>{result.coverage.total_sources}</strong>
+                        nguồn
+                      </span>
+                      <span>
+                        <strong>{result.chapters.length}</strong>
+                        chapter
+                      </span>
+                    </div>
+                    {(result.coverage.warnings.length > 0 ||
+                      result.coverage.unreadable_pages.length > 0) && (
+                      <div className="coverage-alert">
+                        <AlertTriangle size={15} />
+                        <span>
+                          {result.coverage.unreadable_pages.length > 0 &&
+                            `Trang khó đọc: ${result.coverage.unreadable_pages.join(", ")}. `}
+                          {result.coverage.warnings.join(" · ")}
+                        </span>
+                      </div>
+                    )}
+                    <div className="result-panel-grid">
+                      <aside className="chapter-navigation">
+                        <div className="result-panel-title">
+                          <ListChecks size={16} />
+                          <strong>Nội dung video</strong>
+                        </div>
+                        <div className="chapter-navigation-list">
+                          {result.chapters.map((chapter, index) => (
+                            <button
+                              key={chapter.chapter_id}
+                              className={
+                                chapter.chapter_id === activeChapter?.chapter_id
+                                  ? "active"
+                                  : ""
+                              }
+                              onClick={() => seekToChapter(chapter)}
+                            >
+                              <span>{index + 1}</span>
+                              <div>
+                                <strong>{chapter.title}</strong>
+                                <small>
+                                  {formatTimestamp(chapter.start_seconds)} · Trang{" "}
+                                  {chapter.page_numbers.join(", ")}
+                                </small>
+                              </div>
+                              <Play size={13} fill="currentColor" />
+                            </button>
+                          ))}
+                        </div>
+                      </aside>
+                      <section className="source-navigation">
+                        <div className="result-panel-title">
+                          <BookOpen size={16} />
+                          <strong>Nguồn của chapter</strong>
+                        </div>
+                        {activeChapter ? (
+                          <>
+                            <p className="chapter-objective">
+                              {activeChapter.learning_objectives.join(" · ")}
+                            </p>
+                            <div className="source-chip-list">
+                              {[...new Map(
+                                activeChapter.sources.map((source) => [
+                                  source.page,
+                                  source,
+                                ]),
+                              ).values()].map((source) => (
+                                <button
+                                  key={source.page}
+                                  className={
+                                    sourcePage?.page === source.page
+                                      ? "active"
+                                      : ""
+                                  }
+                                  onClick={() => void showSourcePage(source.page)}
+                                >
+                                  Trang {source.page}
+                                  <small>{source.element_type}</small>
+                                </button>
+                              ))}
+                            </div>
+                            {sourcePage ? (
+                              <div className="source-page-preview">
+                                <img
+                                  src={sourcePage.imageUrl}
+                                  alt={`Trang nguồn ${sourcePage.page}`}
+                                />
+                                <div>
+                                  <strong>Trang {sourcePage.page}</strong>
+                                  <p>
+                                    {result.pages.find(
+                                      (page) => page.page === sourcePage.page,
+                                    )?.summary}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="source-empty">
+                                Chọn một trang để đối chiếu trực tiếp với PDF.
+                              </div>
+                            )}
+                            {resultError && (
+                              <p className="source-error">{resultError}</p>
+                            )}
+                          </>
+                        ) : (
+                          <div className="source-empty">
+                            Video chưa có chapter timestamp.
+                          </div>
+                        )}
+                      </section>
+                    </div>
+                  </>
+                ) : null}
               </div>
-            </div>
+            )}
+            {playing.jobId && result && (
+              <form className="video-feedback-panel" onSubmit={submitFeedback}>
+                <div className="feedback-heading">
+                  <span><MessageSquareText size={18} /></span>
+                  <div>
+                    <strong>
+                      {hasSavedFeedback
+                        ? "Cập nhật phản hồi của bạn"
+                        : "Video này hữu ích đến đâu?"}
+                    </strong>
+                    <p>Phản hồi được lưu cùng job để cải thiện chất lượng bài giảng.</p>
+                  </div>
+                </div>
+                <div className="feedback-grid">
+                  <div className="feedback-field rating-field">
+                    <label>Đánh giá tổng thể</label>
+                    <div className="star-rating">
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          key={rating}
+                          type="button"
+                          className={
+                            rating <= feedback.overall_rating ? "active" : ""
+                          }
+                          onClick={() =>
+                            setFeedback((current) => ({
+                              ...current,
+                              overall_rating: rating,
+                            }))
+                          }
+                          aria-label={`${rating} sao`}
+                        >
+                          <Star size={19} fill="currentColor" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="feedback-field">
+                    Độ chính xác nội dung
+                    <select
+                      value={feedback.content_accuracy}
+                      onChange={(event) =>
+                        setFeedback((current) => ({
+                          ...current,
+                          content_accuracy: event.target
+                            .value as FeedbackInput["content_accuracy"],
+                        }))
+                      }
+                    >
+                      <option value="ACCURATE">Chính xác</option>
+                      <option value="MINOR_ISSUE">Có lỗi nhỏ</option>
+                      <option value="INCORRECT">Có nội dung sai</option>
+                      <option value="UNSURE">Tôi không chắc</option>
+                    </select>
+                  </label>
+                  <label className="feedback-field">
+                    Mức độ dễ hiểu
+                    <select
+                      value={feedback.clarity_rating}
+                      onChange={(event) =>
+                        setFeedback((current) => ({
+                          ...current,
+                          clarity_rating: Number(event.target.value),
+                        }))
+                      }
+                    >
+                      {[5, 4, 3, 2, 1].map((rating) => (
+                        <option value={rating} key={rating}>
+                          {rating}/5
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="feedback-field">
+                    Thời lượng
+                    <select
+                      value={feedback.duration_fit}
+                      onChange={(event) =>
+                        setFeedback((current) => ({
+                          ...current,
+                          duration_fit: event.target
+                            .value as FeedbackInput["duration_fit"],
+                        }))
+                      }
+                    >
+                      <option value="TOO_SHORT">Quá ngắn</option>
+                      <option value="JUST_RIGHT">Vừa đủ</option>
+                      <option value="TOO_LONG">Quá dài</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="feedback-choice">
+                  <span>Bạn có muốn dùng video kiểu này cho tài liệu tiếp theo?</span>
+                  <div>
+                    <button
+                      type="button"
+                      className={feedback.would_use_again ? "active" : ""}
+                      onClick={() =>
+                        setFeedback((current) => ({
+                          ...current,
+                          would_use_again: true,
+                        }))
+                      }
+                    >
+                      Có
+                    </button>
+                    <button
+                      type="button"
+                      className={!feedback.would_use_again ? "active" : ""}
+                      onClick={() =>
+                        setFeedback((current) => ({
+                          ...current,
+                          would_use_again: false,
+                        }))
+                      }
+                    >
+                      Không
+                    </button>
+                  </div>
+                </div>
+                <label className="feedback-text">
+                  Phần nào khó hiểu hoặc sai?
+                  <textarea
+                    rows={2}
+                    maxLength={2000}
+                    value={feedback.issue_details ?? ""}
+                    onChange={(event) =>
+                      setFeedback((current) => ({
+                        ...current,
+                        issue_details: event.target.value,
+                      }))
+                    }
+                    placeholder="Ghi chapter, timestamp hoặc nội dung cần xem lại..."
+                  />
+                </label>
+                <label className="feedback-text">
+                  Góp ý thêm
+                  <textarea
+                    rows={2}
+                    maxLength={2000}
+                    value={feedback.comment ?? ""}
+                    onChange={(event) =>
+                      setFeedback((current) => ({
+                        ...current,
+                        comment: event.target.value,
+                      }))
+                    }
+                    placeholder="Điều gì sẽ khiến video hữu ích hơn?"
+                  />
+                </label>
+                <div className="feedback-actions">
+                  {feedbackMessage && <span>{feedbackMessage}</span>}
+                  <button
+                    className="primary-button"
+                    disabled={feedbackSaving}
+                  >
+                    {feedbackSaving
+                      ? "Đang lưu..."
+                      : hasSavedFeedback
+                        ? "Cập nhật phản hồi"
+                        : "Gửi phản hồi"}
+                  </button>
+                </div>
+              </form>
+            )}
             <div className="player-meta">
               <div><h3>{playing.title}</h3><p>Tạo từ {playing.documentName}</p></div>
-              <button className="secondary-button"><Share2 size={17} /> Chia sẻ</button>
-              <button className="primary-button"><Download size={17} /> Tải video</button>
+              {playing.subtitleUrl && (
+                <a className="secondary-button" href={playing.subtitleUrl}>
+                  <Download size={17} /> Tải SRT
+                </a>
+              )}
+              {playing.videoUrl ? (
+                <a className="primary-button" href={playing.videoUrl}>
+                  <Download size={17} /> Tải video
+                </a>
+              ) : null}
             </div>
           </div>
         </div>

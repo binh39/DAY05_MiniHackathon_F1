@@ -2,9 +2,12 @@ node_modules/
 dist/
 .cache/
 .env
+.env.local
 runs/*
 !runs/.gitkeep
 inputs/*
 !inputs/.gitkeep
 outputs/*
 !outputs/.gitkeep
+backend-data/
+firebase-debug.log

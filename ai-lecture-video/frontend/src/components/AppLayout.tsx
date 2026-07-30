@@ -28,8 +28,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  function signOut() {
-    logout();
+  async function signOut() {
+    await logout();
     navigate("/login");
   }
 
@@ -127,7 +127,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 <button>
                   <Settings size={17} /> Cài đặt tài khoản
                 </button>
-                <button onClick={signOut}>
+                <button onClick={() => void signOut()}>
                   <LogOut size={17} /> Đăng xuất
                 </button>
               </div>

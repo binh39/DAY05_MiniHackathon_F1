@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
-const pipelineConfigSchema = z.object({
+export const pipelineConfigSchema = z.object({
   input_pdf: z.string().min(1),
   output_directory: z.string().min(1),
   coverage_mode: z.enum(["FULL", "CONCISE", "SUMMARY"]).default("FULL"),

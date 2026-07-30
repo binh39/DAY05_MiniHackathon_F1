@@ -13,6 +13,28 @@ import { Logo } from "../components/Logo";
 import { useAuth } from "../contexts";
 import { Link, useNavigate } from "../router";
 
+function authErrorMessage(error: unknown): string {
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String(error.code)
+      : "";
+  if (code === "auth/invalid-credential") {
+    return "Email hoặc mật khẩu không đúng.";
+  }
+  if (code === "auth/email-already-in-use") {
+    return "Email này đã được đăng ký.";
+  }
+  if (code === "auth/weak-password") {
+    return "Mật khẩu chưa đáp ứng chính sách bảo mật.";
+  }
+  if (code === "auth/too-many-requests") {
+    return "Có quá nhiều lần thử. Vui lòng đợi một lúc rồi thử lại.";
+  }
+  return error instanceof Error
+    ? error.message
+    : "Không thể xác thực. Vui lòng thử lại.";
+}
+
 function AuthVisual() {
   return (
     <section className="auth-visual">
@@ -70,39 +92,64 @@ function AuthVisual() {
 function SocialButtons() {
   return (
     <div className="social-buttons">
-      <button type="button">
+      <button type="button" disabled title="Sắp ra mắt">
         <span className="google-g">G</span>
-        Tiếp tục với Google
+        Google · Sắp ra mắt
       </button>
-      <button type="button">
+      <button type="button" disabled title="Sắp ra mắt">
         <span className="microsoft-icon">
           <i />
           <i />
           <i />
           <i />
         </span>
-        Microsoft
+        Microsoft · Sắp ra mắt
       </button>
     </div>
   );
 }
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("demo@lecture.ai");
-  const [password, setPassword] = useState("12345678");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!email.includes("@") || password.length < 6) {
       setError("Vui lòng nhập email hợp lệ và mật khẩu từ 6 ký tự.");
       return;
     }
-    login(email);
-    navigate("/app/create");
+    setSubmitting(true);
+    setError("");
+    try {
+      await login(email, password);
+      navigate("/app/create");
+    } catch (authError) {
+      setError(authErrorMessage(authError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function forgotPassword() {
+    if (!email.includes("@")) {
+      setError("Nhập email của bạn trước khi yêu cầu đặt lại mật khẩu.");
+      return;
+    }
+    setError("");
+    setNotice("");
+    try {
+      await resetPassword(email);
+      setNotice("Nếu tài khoản tồn tại, Firebase đã gửi email đặt lại mật khẩu.");
+    } catch (authError) {
+      setError(authErrorMessage(authError));
+    }
   }
 
   return (
@@ -135,7 +182,11 @@ export function LoginPage() {
             <label>
               <span className="label-row">
                 Mật khẩu
-                <button type="button" className="text-button">
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void forgotPassword()}
+                >
                   Quên mật khẩu?
                 </button>
               </span>
@@ -161,8 +212,10 @@ export function LoginPage() {
               <span>Ghi nhớ đăng nhập</span>
             </label>
             {error && <p className="form-error">{error}</p>}
-            <button className="primary-button auth-submit">
-              Đăng nhập <ArrowRight size={18} />
+            {notice && <p className="form-success">{notice}</p>}
+            <button className="primary-button auth-submit" disabled={submitting}>
+              {submitting ? "Đang đăng nhập..." : "Đăng nhập"}{" "}
+              {!submitting && <ArrowRight size={18} />}
             </button>
           </form>
           <p className="auth-switch">
@@ -179,22 +232,31 @@ export function LoginPage() {
 }
 
 export function RegisterPage() {
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (name.trim().length < 2 || !email.includes("@") || password.length < 8) {
       setError("Nhập họ tên, email hợp lệ và mật khẩu tối thiểu 8 ký tự.");
       return;
     }
-    login(email, name.trim());
-    navigate("/app/create");
+    setSubmitting(true);
+    setError("");
+    try {
+      await register(name.trim(), email, password);
+      navigate("/app/create");
+    } catch (authError) {
+      setError(authErrorMessage(authError));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -264,8 +326,9 @@ export function RegisterPage() {
               </span>
             </div>
             {error && <p className="form-error">{error}</p>}
-            <button className="primary-button auth-submit">
-              Tạo tài khoản <ArrowRight size={18} />
+            <button className="primary-button auth-submit" disabled={submitting}>
+              {submitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}{" "}
+              {!submitting && <ArrowRight size={18} />}
             </button>
           </form>
           <p className="auth-switch">

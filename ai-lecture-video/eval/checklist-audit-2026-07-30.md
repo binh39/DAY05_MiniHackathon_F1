@@ -10,7 +10,7 @@ Audit đối chiếu `Checklist.md` và `Tasks.md` với:
 - evaluation của `Lecture-02-Process.pdf`;
 - kết quả `npm run typecheck`, `npm test`, `npm run inspect`.
 
-Kết quả kiểm tra lại: typecheck pass, 42/42 test pass, pipeline end-to-end exit 0.
+Kết quả kiểm tra lại: typecheck pass, 48/48 test pass, pipeline end-to-end exit 0.
 
 ## Phần đã xác minh
 
@@ -21,6 +21,25 @@ Kết quả kiểm tra lại: typecheck pass, 42/42 test pass, pipeline end-to-e
 - Module 5A/5B chạy song song; Module 6 compose MP4/SRT/coverage và pipeline
   hoàn tất với exit code 0.
 - Module 1–6 có cache riêng; chưa có resume orchestration từ module tùy ý.
+- Local job state machine lưu bền trạng thái và đánh dấu job đang chạy là
+  interrupted nếu backend khởi động lại.
+
+### Backend và Web
+
+- Fastify API kiểm tra upload PDF, tạo/lưu job và chạy pipeline ngoài request với
+  concurrency 1.
+- Có status/progress, cancel/retry và timeout toàn pipeline.
+- Artifact endpoint chỉ cho phép MP4, SRT, coverage JSON và thumbnail nằm trong
+  run directory hợp lệ.
+- Frontend đã nối API thật để upload, poll job, cancel/retry, xem video và tải
+  artifact.
+- Browser đã decode và phát video thật dài 67,454362 giây; không có console/page
+  error. Chi tiết ở `eval/backend-web-e2e-2026-07-30.md`.
+- Firebase Email/Password Auth đã bảo vệ API thật; Firestore/Storage rules đã
+  deploy và live test xác minh owner isolation/unauthenticated deny.
+- Pipeline web đã pause sau Module 2, có preview/edit/approve và resume Module
+  3–6 trong cùng run. Browser QA không có console/page error.
+- Chưa có timeout từng module.
 
 ### Module 1
 
@@ -39,7 +58,7 @@ Kết quả kiểm tra lại: typecheck pass, 42/42 test pass, pipeline end-to-e
 - Có sáu treatment, duration estimator, coverage manifest, validator, retry và
   cache.
 - Chapter dài nhất dưới giới hạn 8 phút.
-- Còn thiếu UI duyệt/chỉnh outline và evaluation trên đủ golden set.
+- UI duyệt/chỉnh outline đã hoàn thành; còn thiếu evaluation trên đủ golden set.
 
 ### Module 3
 
@@ -47,7 +66,8 @@ Kết quả kiểm tra lại: typecheck pass, 42/42 test pass, pipeline end-to-e
 - 44/44 source cần dạy được cite; không thiếu objective hoặc semantic issue.
 - Có năm narration kind, recap cuối chapter, learning check, glossary, chunk
   limit, duration validator, semantic review, scoped repair và cache.
-- Còn thiếu pause metadata và evaluation trên đủ golden set.
+- Pause metadata đã được áp dụng bằng SSML ở Module 5B; còn thiếu evaluation
+  trên đủ golden set.
 
 ### Module 4
 
@@ -115,4 +135,5 @@ Productization và validation:
 2. Bổ sung animation nội cảnh hoặc transition nếu user test cho thấy slide tĩnh
    làm giảm khả năng theo dõi.
 3. Chạy đủ golden PDF set.
-4. Xây backend job + upload UI để người dùng chạy pipeline.
+4. Bổ sung progress/timeout riêng theo module và upload progress thật.
+5. Thêm quota theo user, xóa toàn bộ job artifact và App Check.

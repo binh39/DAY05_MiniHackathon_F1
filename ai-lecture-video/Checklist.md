@@ -9,19 +9,20 @@
 | Nhóm | Hoàn thành | Tổng |
 |---|---:|---:|
 | Product scope | 4 | 8 |
-| Foundation | 10 | 16 |
-| Module 1 | 20 | 30 |
-| Module 2 | 20 | 22 |
+| Foundation | 11 | 16 |
+| Module 1 | 21 | 30 |
+| Module 2 | 21 | 22 |
 | Module 3 | 24 | 25 |
 | Module 4–6 | 70 | 74 |
-| Backend + Web app | 0 | 27 |
+| Backend + Web app | 22 | 27 |
 | Evaluation | 2 | 14 |
-| Security + Deployment | 2 | 22 |
+| Security + Deployment | 5 | 22 |
 | Milestones | 2 | 6 |
-| **Tổng cộng** | **154** | **244** |
+| **Tổng cộng** | **182** | **244** |
 
-Có 10 task đang ở trạng thái **Partial**. Audit dựa trên code, 42 unit/integration
-test, artifact thật của `Lecture-02-Process.pdf` và các báo cáo trong `eval/`.
+Có 14 task đang ở trạng thái **Partial**. Audit dựa trên code, 48 unit/integration
+test, artifact thật của `Lecture-02-Process.pdf`, kiểm thử API/browser end-to-end
+và các báo cáo trong `eval/`.
 Chi tiết bằng chứng: `eval/checklist-audit-2026-07-30.md`.
 
 Mặc dù pipeline kỹ thuật đã tạo được artifact Module 1–3, M1/M2 chưa được tick
@@ -51,7 +52,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] Typecheck thành công.
 - [x] Test skeleton thành công.
 - [ ] Tạo run manifest.
-- [ ] Tạo job state machine.
+- [x] Tạo job state machine.
 - [ ] Tạo error taxonomy.
 - [ ] Thêm structured logging.
 - [ ] Thêm resume từ module lỗi.
@@ -60,7 +61,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 
 ## C. Module 1 — Document Intelligence
 
-- [ ] Validate MIME từ upload HTTP.
+- [x] Validate MIME từ upload HTTP.
 - [x] Validate PDF magic bytes.
 - [ ] Từ chối PDF corrupt/password-protected — **Partial:** code đã bắt lỗi
   `pdf-lib`; chưa có automated test với PDF encrypted thật.
@@ -115,7 +116,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [x] Integration test `Lecture-02-Process.pdf` 45 trang.
 - [x] Representative evaluation Module 2 trên PDF 45 trang.
 - [ ] Golden evaluation Module 2 trên đủ golden set.
-- [ ] UI cho phép user duyệt/chỉnh outline trước khi sinh script.
+- [x] UI cho phép user duyệt/chỉnh outline trước khi sinh script.
 
 ## E. Module 3 — Script Generator
 
@@ -234,36 +235,38 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 
 ## J. Backend
 
-- [ ] API upload PDF.
-- [ ] API tạo job.
-- [ ] Job runner chạy ngoài HTTP request.
-- [ ] Giới hạn concurrency.
-- [ ] Timeout theo module.
-- [ ] API lấy trạng thái job.
-- [ ] API cancel/retry job.
-- [ ] Pipeline pause sau Module 2.
-- [ ] API approve outline.
-- [ ] Serve video/subtitle/report an toàn.
+- [x] API upload PDF.
+- [x] API tạo job.
+- [x] Job runner chạy ngoài HTTP request.
+- [x] Giới hạn concurrency.
+- [ ] Timeout theo module — **Partial:** đã có timeout 30 phút cho toàn pipeline;
+  chưa tách timeout và chính sách retry cho từng module.
+- [x] API lấy trạng thái job.
+- [x] API cancel/retry job.
+- [x] Pipeline pause sau Module 2.
+- [x] API approve outline.
+- [x] Serve video/subtitle/report an toàn.
 
 ## K. Web app
 
-- [ ] Trang upload PDF.
-- [ ] Hiển thị giới hạn file.
+- [x] Trang upload PDF.
+- [x] Hiển thị giới hạn file.
 - [ ] Chọn coverage mode.
-- [ ] Chọn audience/language/voice.
+- [ ] Chọn audience/language/voice — **Partial:** đã chọn được language và voice;
+  audience vẫn đang dùng cấu hình mặc định.
 - [ ] Upload progress.
-- [ ] Preview document analysis.
-- [ ] Hiển thị chapter và thời lượng dự kiến.
-- [ ] Hiển thị warning/unreadable page.
-- [ ] Outline review và approve.
-- [ ] Processing progress theo module.
+- [x] Preview document analysis.
+- [x] Hiển thị chapter và thời lượng dự kiến.
+- [x] Hiển thị warning/unreadable page.
+- [x] Outline review và approve.
+- [x] Processing progress theo module.
 - [ ] Hiển thị Module 5A/5B song song.
-- [ ] Result video player.
-- [ ] Chapter navigation.
-- [ ] Download MP4/SRT.
-- [ ] Coverage summary.
-- [ ] Link chapter về source page.
-- [ ] Form feedback.
+- [x] Result video player.
+- [x] Chapter navigation.
+- [x] Download MP4/SRT.
+- [x] Coverage summary.
+- [x] Link chapter về source page.
+- [x] Form feedback.
 
 ## L. Evaluation
 
@@ -292,13 +295,14 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 
 - [x] `.env` được ignore.
 - [x] Local development dùng ADC, không dùng static API key.
-- [ ] Không log secret.
-- [ ] Safe filename/path.
-- [ ] Chống path traversal.
+- [x] Không log secret.
+- [x] Safe filename/path.
+- [x] Chống path traversal.
 - [ ] Không thực thi content nhúng trong PDF.
 - [ ] Chống prompt injection từ PDF — **Partial:** prompt đã coi PDF là dữ liệu
   và cấm làm theo instruction trong tài liệu; chưa có adversarial test.
-- [ ] Rate limit và quota.
+- [ ] Rate limit và quota — **Partial:** API đã có rate limit toàn cục; chưa có
+  quota thời lượng/token theo từng user.
 - [ ] Chính sách retention.
 - [ ] Xóa toàn bộ artifact của một job.
 - [ ] Xác minh data policy của AI/TTS provider.
@@ -323,5 +327,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 - [ ] M2 — Tạo được plan và script có căn cứ.
 - [x] M3 — Tạo được storyboard, visual và voice.
 - [x] M4 — Một PDF tạo được video end-to-end.
-- [ ] M5 — Upload và xem kết quả qua web app.
+- [ ] M5 — Upload và xem kết quả qua web app — **Partial:** luồng kỹ thuật đã
+  được kiểm thử bằng backend và browser thật; Phase 10/user validation chưa hoàn
+  tất nên chưa đạt định nghĩa milestone trong `Tasks.md`.
 - [ ] M6 — Golden set, user validation và demo hoàn tất.

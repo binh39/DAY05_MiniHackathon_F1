@@ -7,15 +7,18 @@ export type DurationOption =
   | "8–10 phút";
 
 export interface User {
+  uid: string;
   name: string;
   email: string;
 }
 
 export interface DocumentItem {
   id: string;
+  jobId: string;
   name: string;
   size: string;
-  pages: number;
+  sizeBytes: number;
+  pages?: number;
   uploadedAt: string;
   status: "ready" | "analyzing";
   color: string;
@@ -28,7 +31,16 @@ export interface VideoItem {
   duration: string;
   ratio: AspectRatio;
   createdAt: string;
-  status: "ready" | "processing";
+  status: "ready" | "processing" | "review" | "failed";
   progress?: number;
   color: string;
+  error?: string;
+  videoUrl?: string;
+  subtitleUrl?: string;
+  coverageUrl?: string;
+  thumbnailUrl?: string;
+  jobId?: string;
+  stage?: string;
+  durationSeconds?: number;
+  hasFeedback?: boolean;
 }

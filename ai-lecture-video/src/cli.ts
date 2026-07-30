@@ -2,6 +2,7 @@ import path from "node:path";
 import { loadConfig } from "./core/config.js";
 import { describePipeline } from "./pipeline/pipeline-definition.js";
 import { runPipeline } from "./pipeline/run-pipeline.js";
+import { pipelineModuleIdSchema } from "./core/pipeline-events.js";
 
 async function main(): Promise<void> {
   const command = process.argv[2] ?? "inspect";
@@ -15,7 +16,17 @@ async function main(): Promise<void> {
   if (command === "run") {
     const configPath = process.argv[3] ?? "config.json";
     const config = await loadConfig(configPath, projectDirectory);
-    await runPipeline(config, projectDirectory);
+    const mode = process.env.PIPELINE_MODE;
+    if (mode && !["full", "plan", "resume"].includes(mode)) {
+      throw new Error(`PIPELINE_MODE không hợp lệ: ${mode}.`);
+    }
+    const startAt = process.env.PIPELINE_START_MODULE
+      ? pipelineModuleIdSchema.parse(process.env.PIPELINE_START_MODULE)
+      : undefined;
+    await runPipeline(config, projectDirectory, {
+      mode: (mode as "full" | "plan" | "resume" | undefined) ?? "full",
+      startAt,
+    });
     return;
   }
 

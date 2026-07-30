@@ -136,8 +136,8 @@ Với mỗi PDF, ghi:
 - CLI `inspect` và `run`.
 - Module 5A/5B chạy song song.
 
-**Trạng thái:** Đã hoàn thành skeleton; pipeline thật hiện chạy qua Module 1–3
-và chủ động dừng ở Module 4.
+**Trạng thái:** Đã hoàn thành skeleton; pipeline thật hiện chạy end-to-end qua
+Module 1–6 và tạo MP4, SRT cùng coverage report.
 
 ### T1.2 — Run manifest và trạng thái job `[P0]`
 
@@ -298,8 +298,8 @@ Mỗi source cần:
 
 **Trạng thái: core backend hoàn thành cho chế độ `FULL`.** Đã chạy representative
 evaluation với `Lecture-02-Process.pdf` 45 trang; kết quả nằm tại
-`eval/module2-lecture-02.md`. Chưa đạt golden evaluation vì bộ 5 golden PDF và
-UI duyệt/chỉnh outline chưa có.
+`eval/module2-lecture-02.md`. UI duyệt/chỉnh outline đã hoàn thành; chưa đạt
+golden evaluation vì chưa chạy đủ bộ 5 golden PDF.
 
 ### T3.1 — Chapter segmentation `[P0]`
 
@@ -650,6 +650,15 @@ Báo cáo:
 
 ## Phase 8 — Backend job service
 
+**Trạng thái: core local backend hoàn thành.** API đã nhận PDF, tạo và lưu job,
+chạy pipeline nền với concurrency 1, trả progress, hỗ trợ cancel/retry và chỉ
+serve bốn loại artifact cho phép. Đã test end-to-end từ frontend tới video thật.
+Firebase Auth đã bảo vệ API; job có owner và được mirror sang Firestore, còn PDF
+và artifact được mirror sang Storage tại `asia-southeast1`. Pipeline hiện dừng
+sau Module 2 ở `AWAITING_APPROVAL`; user có thể xem document analysis, sửa
+title/objective/thứ tự/mức chi tiết chapter rồi approve để tiếp tục Module 3–6
+trong cùng run. Timeout hiện vẫn áp dụng cho toàn pipeline.
+
 ### T8.1 — API upload và tạo job `[P0]`
 
 - Upload PDF.
@@ -691,6 +700,13 @@ Báo cáo:
 ---
 
 ## Phase 9 — Web app
+
+**Trạng thái: luồng P0, outline review, result navigation và feedback đã nối backend thật.** Người dùng có thể upload
+PDF, chọn tỉ lệ/thời lượng/ngôn ngữ/voice, theo dõi trạng thái, cancel/retry, xem
+video và tải MP4/SRT. Đăng nhập, đăng ký, giữ phiên và reset password đã dùng
+Firebase Authentication thật. Result player đã có chapter navigation theo timestamp,
+coverage summary, đối chiếu trang nguồn PDF và form feedback lưu thật theo user/job.
+UI không còn seed/mock document hoặc video.
 
 ### T9.1 — Upload screen `[P0]`
 

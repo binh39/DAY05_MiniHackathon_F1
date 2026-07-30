@@ -47,6 +47,11 @@ src/
 ├── pipeline/
 │   ├── pipeline-definition.ts
 │   └── run-pipeline.ts
+├── server/
+│   ├── app.ts
+│   ├── job-runner.ts
+│   ├── job-store.ts
+│   └── index.ts
 └── cli.ts
 ```
 
@@ -105,6 +110,63 @@ Module 5A bằng Remotion và Module 5B bằng Google Cloud Text-to-Speech, ghi
 `04_storyboard.json`, `05a_visual_manifest.json`, `05b_voice_manifest.json`.
 Module 6 tiếp tục tạo `lecture.mp4`, `lecture.srt`, `coverage-report.json` và
 `06_video_manifest.json`.
+
+## Chạy backend API và frontend
+
+Terminal thứ nhất, tại thư mục `ai-lecture-video`:
+
+```bash
+npm run serve:api
+```
+
+Terminal thứ hai:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Mở `http://localhost:4173`. API mặc định lắng nghe tại
+`http://127.0.0.1:8787`. Job được lưu trong `backend-data/`; pipeline tiếp tục
+ghi artifact vào `runs/`.
+
+API hiện hỗ trợ upload/tạo job, danh sách và trạng thái job, cancel/retry, cùng
+các artifact `video`, `subtitle`, `coverage`, `thumbnail`. File upload được giới
+hạn 50 MB, kiểm tra MIME/đuôi file và PDF magic bytes. Artifact chỉ được đọc từ
+run directory hợp lệ, không public toàn bộ filesystem.
+
+Job tạo từ web chạy theo hai chặng:
+
+```text
+Upload → Module 1–2 → AWAITING_APPROVAL
+                       ↓ user duyệt outline
+                     Module 3–6 → COMPLETED
+```
+
+Trang duyệt outline hiển thị thumbnail, section, concept, warning, coverage,
+chapter và thời lượng. User có thể đổi tiêu đề, mục tiêu học tập, thứ tự và mức
+chi tiết chapter. Plan gốc được giữ tại `02_lecture_plan.original.json`; plan đã
+duyệt được dùng khi resume từ Module 3.
+
+## Firebase
+
+Project hiện dùng `project-5d300c02-d165-4037-b6f`:
+
+- Firebase Authentication bằng Email/Password;
+- Firestore `(default)` tại `asia-southeast1`;
+- Storage bucket
+  `project-5d300c02-d165-4037-b6f.firebasestorage.app` tại
+  `asia-southeast1`;
+- rules trong `firestore.rules` và `storage.rules`.
+
+Frontend giữ phiên bằng Firebase Auth và gửi ID token tới API. Backend xác minh
+chữ ký token, chỉ trả job thuộc `owner_uid`, mirror metadata job lên Firestore
+và file vào `users/{uid}/jobs/{jobId}/...` trên Storage. Deploy lại rules bằng:
+
+```bash
+npm run firebase:deploy
+```
 
 ## Trách nhiệm từng module
 
@@ -199,7 +261,7 @@ render video cuối. Module hiện đã có:
 
 ## Bước implementation tiếp theo
 
-Module 1–5B đã có core backend và representative run. Đường găng tiếp theo là
-Module 6: dùng duration thật của 5B để tạo timeline, sinh subtitle/chapter
-timestamp, render MP4 và chạy final media QA. Golden-set evaluation vẫn cần thực
-hiện trước khi coi pipeline là production-ready.
+Pipeline Module 1–6, job API, Firebase multi-user, outline approval, result
+navigation và feedback đã chạy. UI thư viện chỉ hiển thị job/PDF thật, không còn
+seed data. Đường găng tiếp theo là progress/timeout theo module, quota theo user
+và chạy golden-set/user validation.

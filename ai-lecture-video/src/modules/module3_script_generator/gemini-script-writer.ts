@@ -140,6 +140,10 @@ function chapterPrompt(
     (total, item) => total + item.estimated_narration_words,
     0,
   );
+  const maximumChapterWords = Math.max(
+    1,
+    Math.floor((chapter.duration_seconds / 60) * 125),
+  );
   const prompt = `You are the Script Writer for a grounded PDF-to-lecture-video system.
 
 Write only chapter "${chapter.title}" in ${config.language} for a ${config.audience} audience.
@@ -162,6 +166,7 @@ Hard rules:
 - The only valid objective_indices are ${chapter.learning_objectives.map((_, index) => index).join(", ")}.
 - Cover every objective. End with at least one LEARNING_CHECK.
 - Keep every narration at 90 words or fewer and do not cut a sentence.
+- The complete chapter must stay at or below ${maximumChapterWords} spoken words so it fits the planned ${chapter.duration_seconds} seconds. This is a hard upper bound, including transitions and the learning check.
 - Use short transition chunks suitable for later scene generation.
 - Use analogies/examples only when pedagogically useful and clearly introduce them as analogy/example.
 - Do not read slide bullets verbatim. Explain naturally.
@@ -235,6 +240,25 @@ function validateChapterDecision(
   const groundedSources = new Set<string>();
   const objectiveIndices = new Set<number>();
   const narrationIds = new Set<string>();
+  const estimatedDurationSeconds = decision.narrations.reduce(
+    (total, narration) => {
+      const words = narration.text.trim().split(/\s+/u).filter(Boolean).length;
+      return total + Math.max(3, Math.ceil((words / 125) * 60));
+    },
+    0,
+  );
+  const durationToleranceSeconds = Math.max(
+    2,
+    Math.ceil(chapter.duration_seconds * 0.05),
+  );
+  if (
+    estimatedDurationSeconds >
+    chapter.duration_seconds + durationToleranceSeconds
+  ) {
+    errors.push(
+      `Tổng narration ${estimatedDurationSeconds}s vượt duration plan ${chapter.duration_seconds}s; hãy rút gọn nhưng vẫn giữ đủ source/objective.`,
+    );
+  }
 
   for (const narration of decision.narrations) {
     if (narrationIds.has(narration.narration_id)) {

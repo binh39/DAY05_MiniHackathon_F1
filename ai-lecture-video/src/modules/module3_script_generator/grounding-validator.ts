@@ -54,9 +54,15 @@ export function validateScript(
   for (const chapter of script.chapters) {
     const plannedChapter = planChapterById.get(chapter.chapter_id);
     if (!plannedChapter) continue;
+    // Each narration duration is rounded up to a whole second. A small
+    // aggregate margin avoids rejecting a script only because of rounding.
+    const durationToleranceSeconds = Math.max(
+      2,
+      Math.ceil(plannedChapter.duration_seconds * 0.05),
+    );
     if (
       chapter.estimated_duration_seconds >
-      plannedChapter.duration_seconds
+      plannedChapter.duration_seconds + durationToleranceSeconds
     ) {
       errors.push(
         `${chapter.chapter_id} có ${chapter.estimated_duration_seconds}s narration, vượt duration plan ${plannedChapter.duration_seconds}s.`,

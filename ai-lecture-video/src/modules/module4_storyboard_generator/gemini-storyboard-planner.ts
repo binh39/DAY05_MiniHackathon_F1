@@ -195,10 +195,6 @@ function validateDecision(
     ]),
   );
   const routeCounts = new Map<string, number>();
-  const sourceById = new Map(
-    document.sources.map((source) => [source.source_id, source]),
-  );
-
   for (const route of decision.routes) {
     routeCounts.set(
       route.narration_id,
@@ -230,24 +226,9 @@ function validateDecision(
     ) {
       errors.push(`${route.narration_id} visual quan trọng thiếu source.`);
     }
-    if (route.visual_type === "CROP_AND_HIGHLIGHT") {
-      const hasBbox = route.source_ids.some(
-        (sourceId) => sourceById.get(sourceId)?.bbox !== undefined,
-      );
-      if (!hasBbox) {
-        errors.push(`${route.narration_id} chọn crop nhưng source không có bbox.`);
-      }
-    }
-    if (route.visual_type === "DIAGRAM") {
-      const hasDiagramSource = route.source_ids.some(
-        (sourceId) => sourceById.get(sourceId)?.element_type === "DIAGRAM",
-      );
-      if (!hasDiagramSource || !route.diagram) {
-        errors.push(
-          `${route.narration_id} chọn DIAGRAM nhưng thiếu diagram source/structure.`,
-        );
-      }
-    }
+    // CROP/DIAGRAM capability mismatches are safe routing errors, not
+    // grounding errors. storyboard-builder deterministically downgrades them
+    // to ORIGINAL_PAGE/BULLET and records a warning without inventing content.
   }
 
   for (const narration of chapter.narrations) {

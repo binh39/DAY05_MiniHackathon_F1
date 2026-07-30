@@ -82,17 +82,24 @@ export function CreateVideoPage() {
     acceptFile(event.dataTransfer.files[0]);
   }
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!file) {
       setError("Hãy tải lên một tài liệu PDF để tiếp tục.");
       return;
     }
     setSubmitting(true);
-    window.setTimeout(() => {
-      createVideo({ file, title, ratio, duration });
+    try {
+      await createVideo({ file, title, ratio, duration });
       navigate("/app/videos", { state: { created: true } });
-    }, 800);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? `Không thể tạo job: ${submitError.message}`
+          : "Không thể kết nối backend.",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -110,7 +117,7 @@ export function CreateVideoPage() {
           <b />
           <span><i>2</i>Tùy chỉnh</span>
           <b />
-          <span><i>3</i>Hoàn tất</span>
+          <span><i>3</i>Duyệt outline</span>
         </div>
       </div>
 
@@ -312,19 +319,19 @@ export function CreateVideoPage() {
             <div className="estimate-box">
               <Clock3 size={18} />
               <div>
-                <span>Thời gian xử lý dự kiến</span>
-                <strong>Khoảng 3–6 phút</strong>
+                <span>Phân tích và tạo outline</span>
+                <strong>Khoảng 2–10 phút</strong>
               </div>
             </div>
             <button className="primary-button create-submit" disabled={submitting}>
               {submitting ? (
                 <><span className="spinner" /> Đang khởi tạo...</>
               ) : (
-                <>Tạo video ngay <ArrowRight size={18} /></>
+                <>Phân tích và tạo outline <ArrowRight size={18} /></>
               )}
             </button>
             <p className="summary-note">
-              <Check size={15} /> Bạn có thể đóng trang trong lúc hệ thống xử lý.
+              <Check size={15} /> Video chỉ được render sau khi bạn duyệt outline.
             </p>
           </div>
           <div className="tip-card">
