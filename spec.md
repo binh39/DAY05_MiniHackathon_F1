@@ -157,11 +157,11 @@ Repo hiện không có danh sách thành viên/mã học viên; **không tự đ
 
 | Vai trò | Người phụ trách | Artifact/đầu ra |
 |---|---|---|
-| Spec + evidence | `[điền tên]` | `spec.md`, `evidence/mining-log.md` |
-| Eval/prompt | `[điền tên]` | `eval/golden-set-v1.md`, run log, failure analysis |
-| Backend/pipeline | `[điền tên]` | `ai-lecture-video/src/`, contract/validator |
-| Web/demo | `[điền tên]` | `ai-lecture-video/frontend/`, dry run |
-| Validation | `[điền tên]` | `validation/feedback-log.md` tại CP5 |
+| Spec + evidence | `Phạm Đình Minh` | `spec.md`, `evidence/mining-log.md` |
+| Eval/prompt | `Đồng Đại Huy` | `eval/golden-set-v1.md`, run log, failure analysis |
+| Backend/pipeline | `Nguyễn Đình Bình` | `ai-lecture-video/src/`, contract/validator |
+| Web/demo | `Nguyễn Quang Tường` | `ai-lecture-video/frontend/`, dry run |
+| Validation | `Phạm Đức Trung` | `validation/feedback-log.md` tại CP5 |
 
 ### Willing users và validation CP5
 
