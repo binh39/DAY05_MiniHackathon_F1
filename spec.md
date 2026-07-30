@@ -187,5 +187,5 @@ Task 10 phút: “Hãy dùng PDF này để tìm lại phần bạn cần học 
 | ----------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | 2026-07-30              | Khởi tạo spec CP4, neo pain vào mining log thay vì nói chung “người học cần video” | `evidence/mining-log.md`; 141 lượt có từ khóa tổng hợp và 49 refusal theo rule |
 | 2026-07-30              | Chốt quality bar 90%, thêm 20-case golden set và run log                                   | `eval/golden-set-v1.md`, `eval/run-01-2026-07-30.md`                                   |
-| 2026-07-30              | Giữ duration estimate lệch -44,8% là fail, không sửa số liệu                           | `ai-lecture-video/eval/module5b-lecture-02.md`                                         |
+| 2026-07-30              | Giữ duration estimate lệch -44,8% là fail, không sửa số liệu                           | `backend/eval/module5b-lecture-02.md`                                                  |
 | CP5 (chưa thực hiện) | Cập nhật sau user validation và rerun toàn bộ set                                        | Không được thay quality bar; chỉ bổ sung evidence/kết quả                      |
