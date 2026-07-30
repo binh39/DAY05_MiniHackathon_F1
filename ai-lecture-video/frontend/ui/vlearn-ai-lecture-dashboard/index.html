@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="only light" />
+    <meta
+      name="description"
+      content="Giao diện Day05_2 - AI Lecture Video cho VLearn"
+    />
+    <title>VLearn · AI Lecture Video</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./workflow.css" />
+    <link rel="stylesheet" href="./routes.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#home" data-route-link="home" aria-label="Trang chủ VLearn">
+          <span class="brand-mark">V</span>
+          <span>V<span class="brand-accent">Learn</span></span>
+        </a>
+        <nav class="primary-nav" aria-label="Điều hướng chính">
+          <a class="active" href="#home" data-route-link="home">⌂&nbsp; Trang chủ</a>
+          <a href="#courses" data-route-link="courses">▣&nbsp; Khóa học của tôi</a>
+          <a href="#notebook" data-route-link="notebook">▤&nbsp; Sổ tay học tập</a>
+        </nav>
+        <div class="top-actions">
+          <button class="text-action" type="button" data-route-link="codelabs">↗&nbsp; Mở Codelabs</button>
+          <button class="locale" type="button" aria-label="Ngôn ngữ hiện tại">VI</button>
+          <button class="theme-toggle" type="button" aria-pressed="false">
+            <span aria-hidden="true">☾</span><span class="theme-label">Giao diện tối</span>
+          </button>
+          <button class="profile" type="button" aria-label="Mở tài khoản Phạm Đình Minh">
+            <span class="avatar">M</span>
+            <span>minh280804@gmail...</span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="top" data-route-view="lecture">
+        <section class="course-heading" aria-labelledby="page-title">
+          <div class="breadcrumbs">VLearn <span>/</span> COMP2010 <span>/</span> Day05 <span>/</span> Day05_2</div>
+          <div class="heading-row">
+            <div>
+              <p class="eyebrow">VLEARN · VINUNI AI THỰC CHIẾN</p>
+              <h1 id="page-title">AI Lecture Video</h1>
+              <p class="intro">Biến bài giảng thành video học tập có thể tra cứu, ghi chú và hỏi đáp cùng AI.</p>
+            </div>
+            <div class="heading-actions">
+              <button class="select-lesson-button" id="openLessonWorkflow" type="button">＋&nbsp; Chọn bài học để tóm tắt</button>
+              <div class="progress-chip"><span></span> Đã xem 36%</div>
+              <button class="continue-button" type="button" data-route-link="lecture">Tiếp tục học&nbsp; →</button>
+            </div>
+          </div>
+          <div class="ready-notice" id="readyNotice" hidden>
+            <span>✓</span><strong>Video tóm tắt đã sẵn sàng</strong><p id="readyNoticeText">Day05_2 · AI Lecture Video đã được xử lý.</p>
+          </div>
+        </section>
+
+        <section class="learning-grid" aria-label="Không gian học AI Lecture Video">
+          <aside class="lesson-nav" id="route">
+            <div class="panel-label">LỘ TRÌNH DAY05</div>
+            <a href="#top"><span class="lesson-dot complete">✓</span><span><b>Day05_1</b> · Introduction</span></a>
+            <a class="selected" href="#video"><span class="lesson-dot">▶</span><span><b>Day05_2</b> · AI Lecture Video</span></a>
+            <a href="#summary"><span class="lesson-dot">○</span><span><b>Day05_3</b> · Reading Material</span></a>
+            <a href="#summary"><span class="lesson-dot">○</span><span><b>Day05_4</b> · Practice Quiz</span></a>
+            <a href="#summary"><span class="lesson-dot">○</span><span><b>Day05_5</b> · Codelabs Track</span></a>
+            <div class="lesson-divider"></div>
+            <button class="tutor-mini" type="button"><span>✦</span> Hỏi VLearn Tutor</button>
+          </aside>
+
+          <div class="content-column">
+            <section class="video-card" id="video" aria-label="Video bài giảng AI Lecture Video">
+              <div class="video-stage">
+                <div class="video-gridlines"></div>
+                <div class="slide-window">
+                  <p>AI-POWERED LEARNING</p>
+                  <strong>Từ slide đến<br />video bài giảng</strong>
+                  <span>Lecture intelligence · Day05_2</span>
+                </div>
+                <div class="lecture-orb orb-one"></div>
+                <div class="lecture-orb orb-two"></div>
+                <button class="play-button" type="button" aria-label="Phát video">▶</button>
+                <span class="video-tag">Bài giảng đang phát</span>
+              </div>
+              <div class="player-controls">
+                <button class="player-icon player-play" type="button" aria-label="Phát hoặc dừng video">▶</button>
+                <button class="player-icon" type="button" aria-label="Âm lượng">◖</button>
+                <div class="timeline" aria-label="Tiến độ video"><span></span></div>
+                <strong class="timecode">06:32 / 19:48</strong>
+                <button class="player-icon" type="button" aria-label="Phụ đề">CC</button>
+                <button class="player-icon" type="button" aria-label="Tốc độ phát">1×</button>
+                <button class="player-icon" type="button" aria-label="Toàn màn hình">⛶</button>
+              </div>
+            </section>
+
+            <section class="learning-tabs" id="summary" aria-label="Nội dung học tập">
+              <div class="tabs" role="tablist">
+                <button class="tab active" type="button" role="tab" aria-selected="true">✦&nbsp; Tóm tắt AI</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">▤&nbsp; Tài liệu</button>
+                <button class="tab" type="button" role="tab" aria-selected="false">▢&nbsp; Thảo luận</button>
+              </div>
+              <article class="summary-card" id="notes">
+                <div class="summary-heading">
+                  <span class="summary-icon">✦</span>
+                  <div><h2>Mục tiêu học tập chính</h2><p>Được tổng hợp tự động bởi VLearn AI</p></div>
+                  <button type="button" aria-label="Lưu tóm tắt">♡</button>
+                </div>
+                <ol>
+                  <li>Hiểu quy trình chuyển đổi nội dung slide giáo trình truyền thống sang định dạng video tương tác AI.</li>
+                  <li>Cách sử dụng AI để tự động gắn nhãn chương mục và trích xuất thông tin quan trọng từ bài giảng.</li>
+                  <li>Tối ưu hoá không gian hiển thị thông qua các điểm tương tác được AI gợi ý trong video.</li>
+                </ol>
+                <div class="summary-actions">
+                  <button type="button">▣&nbsp; Tạo quiz từ video</button>
+                  <button type="button">▤&nbsp; Lưu ghi chú</button>
+                  <button type="button" class="ask-tutor">✦&nbsp; Hỏi VLearn Tutor</button>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <aside class="side-column">
+            <section class="chapter-card" aria-labelledby="chapters-title">
+              <div class="card-title"><h2 id="chapters-title">Mục lục video</h2><span>19:48</span></div>
+              <button class="chapter" type="button"><span>01</span><div><b>Giới thiệu về Neural Engine</b><small>00:00 · 06:32</small></div><i>✓</i></button>
+              <button class="chapter active" type="button"><span>02</span><div><b>Từ slide đến video bài giảng</b><small>ĐANG XEM · 06:32</small></div><i>●</i></button>
+              <button class="chapter" type="button"><span>03</span><div><b>AI trích xuất kiến thức cốt lõi</b><small>12:15 · 16:48</small></div><i>▢</i></button>
+              <button class="chapter" type="button"><span>04</span><div><b>Thực hành cùng Codelabs</b><small>16:48 · 19:48</small></div><i>▢</i></button>
+              <button class="ai-summary" type="button">✦&nbsp; Tóm tắt bằng AI</button>
+            </section>
+            <section class="documents-card">
+              <p class="panel-label">TÀI LIỆU LIÊN QUAN</p>
+              <a href="#summary"><span>▣</span><div><b>Slide_Bài_Giảng_D_05.pdf</b><small>23 trang</small></div></a>
+              <a href="#summary"><span>‹/›</span><div><b>Source_Code_Sample.zip</b><small>1.2 MB</small></div></a>
+            </section>
+          </aside>
+        </section>
+      </main>
+
+      <section class="route-page route-home" id="home" data-route-view="home" hidden aria-labelledby="home-title">
+        <div class="route-hero home-hero">
+          <div><p class="eyebrow">VLEARN · KHÔNG GIAN HỌC TẬP</p><h1 id="home-title">Chào Minh, sẵn sàng cho<br />một bước tiến mới?</h1><p>Tổng quan hành trình học AI của bạn hôm nay — tập trung, có nhịp độ và luôn có AI đồng hành.</p><button class="route-primary" type="button" data-route-link="lecture">Tiếp tục Day05_2&nbsp; →</button></div>
+          <div class="hero-progress-card"><span class="hero-orb"></span><p>HỌC TẬP TUẦN NÀY</p><strong>4 giờ 32 phút</strong><div class="week-bars"><i></i><i></i><i class="tall"></i><i></i><i class="active"></i><i></i><i></i></div><small>+18% so với tuần trước</small></div>
+        </div>
+        <div class="metric-strip" aria-label="Chỉ số học tập"><div><span>◉</span><p>Chuỗi học tập</p><strong>12 ngày</strong></div><div><span>✦</span><p>Điểm tích luỹ</p><strong>1,280 XP</strong></div><div><span>▤</span><p>Ghi chú đã lưu</p><strong>24 mục</strong></div><div><span>✓</span><p>Tiến độ kỳ này</p><strong>68%</strong></div></div>
+        <div class="home-grid">
+          <article class="route-card continue-learning"><div class="card-kicker">TIẾP TỤC HỌC</div><h2>AI Lecture Video</h2><p>Day05_2 · Từ slide đến video bài giảng</p><div class="course-progress"><span style="width:36%"></span></div><footer><small>06:32 / 19:48</small><button type="button" data-route-link="lecture">Mở bài học&nbsp; →</button></footer></article>
+          <article class="route-card activity-card"><div class="card-title"><h2>Hoạt động gần đây</h2><button type="button" data-route-link="notebook">Xem sổ tay</button></div><ul><li><span class="activity-icon blue">▤</span><div><b>Đã lưu ghi chú Neural Engine</b><small>15 phút trước · Day05_2</small></div></li><li><span class="activity-icon green">✓</span><div><b>Hoàn tất Introduction to AI</b><small>Hôm qua · COMP2010</small></div></li><li><span class="activity-icon red">✦</span><div><b>Nhận 120 XP từ quiz</b><small>2 ngày trước</small></div></li></ul></article>
+        </div>
+      </section>
+
+      <section class="route-page" id="courses" data-route-view="courses" hidden aria-labelledby="courses-title">
+        <div class="route-heading"><div><p class="eyebrow">MY LEARNING LIBRARY</p><h1 id="courses-title">Khóa học của tôi</h1><p>Quản lý các lộ trình đang theo học và quay lại đúng nơi bạn đã dừng.</p></div><button class="route-primary compact" type="button" data-route-link="lecture">Mở bài đang học&nbsp; →</button></div>
+        <div class="course-toolbar"><label class="route-search">⌕<input type="search" placeholder="Tìm khóa học, chủ đề hoặc giảng viên" aria-label="Tìm khóa học" /></label><div class="filter-chips"><button class="selected" type="button">Đang học</button><button type="button">Đã hoàn thành</button><button type="button">Đã lưu</button></div></div>
+        <div class="course-grid">
+          <article class="catalog-card featured"><div class="course-cover ai-cover"><span>AI</span><p>COMP2010</p></div><div class="catalog-copy"><span class="status-pill">ĐANG HỌC</span><h2>AI Lecture Video</h2><p>Biến bài giảng thành video học tập có thể tra cứu cùng AI.</p><div class="progress-line"><span style="width:36%"></span></div><footer><small>36% hoàn thành · Day05_2</small><button type="button" data-route-link="lecture">Tiếp tục&nbsp; →</button></footer></div></article>
+          <article class="catalog-card"><div class="course-cover python-cover"><span>Py</span><p>CS101</p></div><div class="catalog-copy"><span class="status-pill neutral">CÒN 3 BÀI</span><h2>Python Foundations</h2><p>Làm chủ tư duy lập trình và cấu trúc dữ liệu cơ bản.</p><div class="progress-line"><span style="width:72%"></span></div><footer><small>72% hoàn thành</small><button type="button">Mở khóa học&nbsp; →</button></footer></div></article>
+          <article class="catalog-card"><div class="course-cover ux-cover"><span>UX</span><p>UX200</p></div><div class="catalog-copy"><span class="status-pill neutral">ĐÃ LƯU</span><h2>Design Systems</h2><p>Xây dựng giao diện nhất quán từ token đến thành phần.</p><div class="progress-line"><span style="width:18%"></span></div><footer><small>18% hoàn thành</small><button type="button">Mở khóa học&nbsp; →</button></footer></div></article>
+        </div>
+      </section>
+
+      <section class="route-page" id="notebook" data-route-view="notebook" hidden aria-labelledby="notebook-title">
+        <div class="route-heading"><div><p class="eyebrow">PERSONAL KNOWLEDGE SPACE</p><h1 id="notebook-title">Sổ tay học tập</h1><p>Ghi chú, kết nối ý tưởng và để VLearn AI gợi ý điểm quan trọng.</p></div><button class="route-primary compact" type="button">＋ Tạo ghi chú</button></div>
+        <div class="notebook-layout">
+          <aside class="notebook-rail"><div class="notebook-user"><span class="avatar">M</span><div><b>Sổ tay của Minh</b><small>24 ghi chú</small></div></div><p>KHÔNG GIAN</p><button class="active" type="button">▤ Tất cả ghi chú <em>24</em></button><button type="button">✦ AI Lecture Video <em>8</em></button><button type="button">⌘ Codelabs <em>6</em></button><button type="button">♡ Đã yêu thích <em>4</em></button><div class="rail-divider"></div><button type="button">＋ Tạo thư mục</button></aside>
+          <section class="note-list"><label class="route-search">⌕<input type="search" placeholder="Tìm trong ghi chú" aria-label="Tìm trong ghi chú" /></label><button class="note-preview active" type="button"><span>Hôm nay · 10:24</span><b>Neural Engine và cách AI đọc slide</b><p>Ba ý chính: phân đoạn nội dung, xác định tiêu đề và tạo chương tự động...</p><i>AI Lecture Video</i></button><button class="note-preview" type="button"><span>Hôm qua · 16:40</span><b>Backpropagation — trực giác đầu tiên</b><p>Liên hệ giữa gradient descent và cách mô hình tự điều chỉnh sai số.</p><i>COMP2010</i></button><button class="note-preview" type="button"><span>24/07 · 09:10</span><b>Câu hỏi cần thử trong Codelabs</b><p>Kiểm tra cách chuẩn hoá dữ liệu ảnh hưởng đến kết quả perceptron.</p><i>Codelabs</i></button></section>
+          <article class="note-editor"><header><div><span>AI LECTURE VIDEO</span><h2>Neural Engine và cách AI đọc slide</h2></div><button type="button" aria-label="Thêm vào yêu thích">♡</button></header><p>AI Lecture Video chia bài giảng thành các đoạn có ngữ cảnh thay vì chỉ cắt theo thời lượng. Mỗi đoạn được gắn với <mark>tiêu đề slide, giọng nói và ý chính</mark> để sinh viên tìm lại nội dung nhanh hơn.</p><h3>Điểm cần ghi nhớ</h3><ul><li>Nhận diện cấu trúc slide trước khi tạo video.</li><li>Tóm tắt theo chương để tránh mất ngữ cảnh.</li><li>Đặt câu hỏi cho Tutor ngay từ phần ghi chú.</li></ul><footer><div><span>#neural-engine</span><span>#lecture-ai</span></div><button type="button">✦ Gợi ý bởi VLearn AI</button></footer></article>
+        </div>
+      </section>
+
+      <section class="route-page" id="codelabs" data-route-view="codelabs" hidden aria-labelledby="codelabs-title">
+        <div class="route-hero codelabs-hero"><div><p class="eyebrow">PRACTICAL AI PATHWAY</p><h1 id="codelabs-title">Codelabs AI<br />thực chiến</h1><p>Học bằng cách xây dựng. Mỗi thử thách giúp bạn biến kiến thức AI thành kỹ năng có thể kiểm chứng.</p><button class="route-primary" type="button">Tiếp tục thử thách&nbsp; →</button></div><div class="code-window"><div><i></i><i></i><i></i><span>perceptron.py</span></div><p><b>def</b> train(<em>x</em>, <em>y</em>):<br />&nbsp;&nbsp;weights -= <em>lr</em> * gradient<br />&nbsp;&nbsp;<b>return</b> weights</p><small>✓ 6 / 8 test cases passing</small></div></div>
+        <div class="code-metrics"><div><span>64%</span><p>Neural Networks Path</p><i><b style="width:64%"></b></i></div><div><span>92%</span><p>Coding accuracy</p><i><b style="width:92%"></b></i></div><div><span>12</span><p>Challenges solved</p><i><b style="width:74%"></b></i></div><div><span>2.4k</span><p>Current XP</p><i><b style="width:58%"></b></i></div></div>
+        <div class="lab-section-title"><div><p class="eyebrow">DEEP LEARNING CURRICULUM</p><h2>Chọn thử thách tiếp theo</h2></div><button type="button" data-route-link="courses">Xem khóa học&nbsp; →</button></div>
+        <div class="challenge-grid"><article class="challenge-card complete"><span>✓</span><small>ĐÃ HOÀN THÀNH</small><h3>Data Preprocessing</h3><p>Chuẩn hoá dữ liệu đầu vào cho một mô hình phân loại.</p><footer>120 XP <b>Đã xong</b></footer></article><article class="challenge-card current"><span>▶</span><small>ĐANG HỌC</small><h3>Implementing a Perceptron</h3><p>Tự xây dựng mạng neural một lớp bằng NumPy.</p><footer>200 XP <b>Tiếp tục →</b></footer></article><article class="challenge-card"><span>⌘</span><small>SẮP MỞ KHÓA</small><h3>Activation Functions</h3><p>Hiểu ReLU, Sigmoid và Softmax qua các ca kiểm thử.</p><footer>150 XP <b>Khoá</b></footer></article></div>
+      </section>
+    </div>
+
+    <div class="workflow-modal" id="workflowModal" role="dialog" aria-modal="true" aria-labelledby="workflowTitle" hidden>
+      <section class="workflow-shell">
+        <header class="workflow-header">
+          <div class="workflow-brand"><span class="brand-mark">V</span><strong>VLearn <span>AI Studio</span></strong></div>
+          <div class="workflow-path" aria-label="Tiến trình tạo video">
+            <span data-path-step="select" class="active">1. Chọn bài học</span><i></i>
+            <span data-path-step="summary">2. Tóm tắt AI</span><i></i>
+            <span data-path-step="render">3. Render video</span><i></i>
+            <span data-path-step="ready">4. Hoàn tất</span>
+          </div>
+          <button class="close-workflow" id="closeWorkflow" type="button" aria-label="Đóng luồng tạo video">×</button>
+        </header>
+
+        <section class="workflow-screen is-active" data-workflow-screen="select" aria-labelledby="workflowTitle">
+          <div class="workflow-heading">
+            <p class="eyebrow">AI VIDEO SUMMARY</p>
+            <h2 id="workflowTitle">Chọn bài học cần tóm tắt</h2>
+            <p>Chọn một bài học từ khoá COMP2010 để AI tạo tóm tắt và video bài giảng ngắn.</p>
+          </div>
+          <div class="lesson-filter-row">
+            <label class="lesson-search">⌕<input type="search" placeholder="Tìm bài học" aria-label="Tìm bài học" /></label>
+            <button class="course-filter" type="button">COMP2010&nbsp;⌄</button>
+          </div>
+          <div class="lesson-choice-grid" role="list">
+            <button class="lesson-choice" type="button" data-lesson="Day05_1 · Introduction" role="listitem"><span class="choice-number">01</span><span><b>Day05_1 · Introduction</b><small>Khái niệm nền tảng · 12 phút</small></span><i>○</i></button>
+            <button class="lesson-choice selected" type="button" data-lesson="Day05_2 · AI Lecture Video" role="listitem"><span class="choice-number">02</span><span><b>Day05_2 · AI Lecture Video</b><small>Trực quan hoá bài giảng với AI · 19 phút</small></span><i>✓</i></button>
+            <button class="lesson-choice" type="button" data-lesson="Day05_3 · Reading Material" role="listitem"><span class="choice-number">03</span><span><b>Day05_3 · Reading Material</b><small>Đọc hiểu và trích xuất kiến thức · 16 phút</small></span><i>○</i></button>
+          </div>
+          <div class="workflow-actions">
+            <p id="selectedLessonText">Đã chọn: <strong>Day05_2 · AI Lecture Video</strong></p>
+            <button class="workflow-primary" id="startSummary" type="button">Tóm tắt bài học đã chọn&nbsp; →</button>
+          </div>
+        </section>
+
+        <section class="workflow-screen" data-workflow-screen="summary" hidden aria-labelledby="summaryWaitingTitle">
+          <div class="workflow-status-card">
+            <span class="status-spark">✦</span>
+            <p class="eyebrow">AI SUMMARY QUEUE</p>
+            <h2 id="summaryWaitingTitle">Đang chờ tóm tắt</h2>
+            <p id="summaryLessonName">Day05_2 · AI Lecture Video</p>
+            <div class="waiting-time"><small>Thời gian đã chờ</small><strong id="summaryTimer">00:24</strong><span>Vị trí hàng đợi: <b>#02</b></span></div>
+            <p class="estimated">AI đang phân tích slide, transcript và các chương bài học. Thời gian dự kiến còn lại: <b>01:30</b></p>
+          </div>
+          <div class="status-stepper" aria-label="Các bước xử lý">
+            <div class="done"><span>✓</span><b>Bài học đã chọn</b><small>Day05_2</small></div>
+            <div class="active"><span>✦</span><b>AI đang tóm tắt</b><small>Đang xử lý nội dung</small></div>
+            <div><span>3</span><b>Sẵn sàng render</b><small>Chờ kết quả tóm tắt</small></div>
+          </div>
+          <div class="workflow-actions status-actions"><button class="workflow-secondary close-from-status" type="button">← Đổi bài học</button><button class="workflow-primary" id="goToRender" type="button">Xem trạng thái render&nbsp; →</button></div>
+        </section>
+
+        <section class="workflow-screen" data-workflow-screen="render" hidden aria-labelledby="renderWaitingTitle">
+          <div class="render-layout">
+            <div class="render-preview"><div class="render-slide"><span>VLEARN AI</span><b>Video tóm tắt<br />đang hoàn thiện</b></div><span class="render-play">▶</span></div>
+            <div class="render-copy"><p class="eyebrow">VIDEO RENDER QUEUE</p><h2 id="renderWaitingTitle">Đang chờ render video</h2><p id="renderLessonName">Day05_2 · AI Lecture Video</p><div class="render-progress-head"><span>Render video</span><strong>68%</strong></div><div class="render-progress"><span></span></div><div class="render-details"><span><small>Thời gian đã chờ</small><b id="renderTimer">00:48</b></span><span><small>Đầu ra</small><b>16:9 · 1080p</b></span><span><small>Thời gian còn lại</small><b>00:22</b></span></div></div>
+          </div>
+          <div class="status-stepper compact"><div class="done"><span>✓</span><b>Tóm tắt hoàn tất</b></div><div class="active"><span>✦</span><b>Video đang render</b></div><div><span>3</span><b>Sẵn sàng xem</b></div></div>
+          <div class="workflow-actions status-actions"><button class="workflow-secondary close-from-status" type="button">← Đổi bài học</button><button class="workflow-primary" id="completeRender" type="button">Mở video đã sẵn sàng&nbsp; →</button></div>
+        </section>
+
+        <section class="workflow-screen" data-workflow-screen="ready" hidden aria-labelledby="readyTitle">
+          <div class="ready-hero"><span>✓</span><p class="eyebrow">VIDEO SUMMARY READY</p><h2 id="readyTitle">Video tóm tắt đã sẵn sàng</h2><p id="readyLessonName">Day05_2 · AI Lecture Video</p><small>Đã tạo 3 chương nội dung, 8 điểm kiến thức chính và video 03:24.</small></div>
+          <div class="ready-result-grid"><div class="ready-video"><div><span>AI-POWERED SUMMARY</span><strong>Từ slide đến<br />video ngắn</strong></div><button type="button" aria-label="Phát video tóm tắt">▶</button></div><div class="ready-result-summary"><h3>Điểm chính đã trích xuất</h3><ol><li>Xác định cấu trúc video phù hợp với nội dung bài giảng.</li><li>Phân chương tự động để học nhanh và tra cứu dễ hơn.</li><li>Chuyển tóm tắt thành nội dung sẵn sàng để học lại.</li></ol></div></div>
+          <div class="workflow-actions status-actions"><button class="workflow-secondary close-from-status" type="button">← Tạo video khác</button><button class="workflow-primary" id="openReadyVideo" type="button">Xem trong thư viện video&nbsp; →</button></div>
+        </section>
+      </section>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

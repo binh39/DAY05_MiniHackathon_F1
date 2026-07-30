@@ -1,0 +1,25 @@
+@media (max-width: 760px) {
+  .heading-actions { flex-wrap: wrap; }
+  .select-lesson-button { order: -1; width: 100%; }
+  .workflow-modal { padding: 0; }
+  .workflow-shell { min-height: 100vh; border: 0; border-radius: 0; }
+  .workflow-header { gap: 12px; padding: 0 17px; }
+  .workflow-path { display: none; }
+  .workflow-brand { margin-right: auto; }
+  .workflow-screen { padding: 28px 18px; }
+  .lesson-filter-row, .workflow-actions { flex-direction: column; }
+  .course-filter, .workflow-primary, .workflow-secondary { width: 100%; min-height: 42px; }
+  .lesson-choice-grid, .render-layout, .ready-result-grid { grid-template-columns: 1fr; }
+  .workflow-actions { align-items: stretch; }
+  .workflow-actions p { order: -1; }
+  .status-stepper { gap: 10px; }
+  .status-stepper > div:not(:last-child)::after { left: calc(50% + 22px); width: calc(100% - 44px); }
+  .status-stepper b { font-size: 8px; }
+  .status-stepper small { font-size: 7px; }
+  .waiting-time { grid-template-columns: 1fr; gap: 5px; text-align: center; }
+  .waiting-time small, .waiting-time span { text-align: center; }
+  .render-details { grid-template-columns: 1fr; }
+  .render-preview { min-height: 210px; }
+}
+
+body.workflow-open { overflow: hidden; }
