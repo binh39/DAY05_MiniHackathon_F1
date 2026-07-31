@@ -258,6 +258,27 @@ test("builds and validates one scene per narration with asset plans", () => {
   assert.equal(storyboard.scenes[3]?.visual.type, "DIAGRAM");
 });
 
+test("normalizes harmless floating-point duration drift", () => {
+  const decimalScript = structuredClone(script);
+  const durations = [0.1, 0.2, 0.3, 0.1, 0.2, 0.3];
+  decimalScript.chapters[0]!.narrations.forEach((narration, index) => {
+    narration.estimated_duration_seconds = durations[index]!;
+  });
+  decimalScript.chapters[0]!.estimated_duration_seconds = 1.2;
+  decimalScript.estimated_duration_seconds = 1.2;
+
+  const storyboard = buildStoryboard(
+    document,
+    decimalScript,
+    new Map([["ch_01", decision]]),
+  );
+  assert.equal(storyboard.estimated_duration_seconds, 1.2);
+  assert.equal(storyboard.validation.duration_delta_seconds, 0);
+  assert.doesNotThrow(() =>
+    validateStoryboard(storyboard, document, decimalScript),
+  );
+});
+
 test("falls back from crop to original page when bbox is unavailable", () => {
   const fallbackDecision: ChapterStoryboardDecision = {
     routes: decision.routes.map((route) =>

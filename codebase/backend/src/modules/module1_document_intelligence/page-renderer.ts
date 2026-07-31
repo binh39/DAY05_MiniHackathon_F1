@@ -56,6 +56,7 @@ async function readCachedManifest(
 async function renderToCache(
   pdf: ValidatedPdf,
   cacheDirectory: string,
+  onPageRendered?: (completedPages: number, totalPages: number) => void,
 ): Promise<z.infer<typeof pageAssetManifestSchema>> {
   await mkdir(cacheDirectory, { recursive: true });
   const loadingTask = getDocument({
@@ -115,6 +116,7 @@ async function renderToCache(
         thumbnail_width: thumbnailWidth,
         thumbnail_height: thumbnailHeight,
       });
+      onPageRendered?.(pageNumber, document.numPages);
       page.cleanup();
     }
   } finally {
@@ -139,6 +141,7 @@ export async function renderPdfPages(
   pdf: ValidatedPdf,
   projectDirectory: string,
   runDirectory: string,
+  onPageRendered?: (completedPages: number, totalPages: number) => void,
 ): Promise<PageAssetReference[]> {
   const cacheDirectory = path.join(
     projectDirectory,
@@ -149,9 +152,10 @@ export async function renderPdfPages(
   let manifest = await readCachedManifest(cacheDirectory, pdf.sha256);
   if (!manifest || manifest.pages.length !== pdf.pageCount) {
     process.stdout.write("  Rendering PDF pages and thumbnails...\n");
-    manifest = await renderToCache(pdf, cacheDirectory);
+    manifest = await renderToCache(pdf, cacheDirectory, onPageRendered);
   } else {
     process.stdout.write("  Page asset cache hit.\n");
+    onPageRendered?.(manifest.pages.length, manifest.pages.length);
   }
 
   const runAssetDirectory = path.join(runDirectory, "assets", "pages");

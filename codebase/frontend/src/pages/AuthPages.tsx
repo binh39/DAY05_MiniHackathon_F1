@@ -12,6 +12,7 @@ import { useState, type FormEvent } from "react";
 import { Logo } from "../components/Logo";
 import { useAuth } from "../contexts";
 import { Link, useNavigate } from "../router";
+import { ThemeToggle } from "../theme";
 
 function authErrorMessage(error: unknown): string {
   const code =
@@ -38,6 +39,28 @@ function authErrorMessage(error: unknown): string {
 function AuthVisual() {
   return (
     <section className="auth-visual">
+      <div className="auth-grid-overlay" aria-hidden="true" />
+      <div className="auth-scan-bloom" aria-hidden="true" />
+      <div className="auth-motion-annotations" aria-hidden="true">
+        <span className="auth-particle particle-one" />
+        <span className="auth-particle particle-two" />
+        <span className="auth-particle particle-three" />
+        <div className="auth-orbit-track orbit-track-one">
+          <span className="auth-orbit-node node-one">01</span>
+        </div>
+        <div className="auth-orbit-track orbit-track-two">
+          <span className="auth-orbit-node node-two">02</span>
+        </div>
+        <div className="auth-orbit-track orbit-track-three">
+          <span className="auth-orbit-node node-three">03</span>
+        </div>
+        <div className="auth-canvas-note canvas-note-one">
+          <FileText size={13} /> PDF · 18 trang
+        </div>
+        <div className="auth-canvas-note canvas-note-two">
+          <Sparkles size={13} /> AI đang phân tích
+        </div>
+      </div>
       <div className="auth-orb auth-orb-one" />
       <div className="auth-orb auth-orb-two" />
       <div className="auth-visual-copy">
@@ -156,6 +179,7 @@ export function LoginPage() {
     <div className="auth-page">
       <AuthVisual />
       <main className="auth-form-side">
+        <div className="auth-theme-control"><ThemeToggle /></div>
         <div className="auth-mobile-logo">
           <Logo />
         </div>
@@ -263,6 +287,7 @@ export function RegisterPage() {
     <div className="auth-page">
       <AuthVisual />
       <main className="auth-form-side">
+        <div className="auth-theme-control"><ThemeToggle /></div>
         <div className="auth-mobile-logo">
           <Logo />
         </div>

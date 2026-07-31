@@ -10,7 +10,7 @@ import {
 } from "../../core/contracts.js";
 import { validateScript } from "./grounding-validator.js";
 
-const PROMPT_VERSION = "module3-v6-tolerant-real-tts-duration-budget";
+const PROMPT_VERSION = "module3-v6-tts-calibrated-duration";
 
 export function createScriptCacheKey(
   document: DocumentArtifact,

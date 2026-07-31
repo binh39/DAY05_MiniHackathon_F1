@@ -11,6 +11,7 @@ import {
   type PipelineModuleId,
 } from "../core/pipeline-events.js";
 import type { FirebaseServices } from "./firebase-services.js";
+import { isDurationFailure } from "./duration-retry.js";
 import { JobStore } from "./job-store.js";
 import {
   initialModuleStates,
@@ -402,7 +403,10 @@ export class JobRunner {
         if (startupTimer) clearTimeout(startupTimer);
         timers.delete("startup");
         startTimer(event.module);
-      } else {
+      } else if (
+        event.type === "MODULE_COMPLETED" ||
+        event.type === "MODULE_FAILED"
+      ) {
         stopTimer(event.module);
       }
       if (event.type === "MODULE_FAILED") {
@@ -425,7 +429,7 @@ export class JobRunner {
             completed_at: event.at,
             error: undefined,
           };
-        } else {
+        } else if (event.type === "MODULE_FAILED") {
           states[event.module] = {
             ...states[event.module],
             status: "FAILED",
@@ -445,13 +449,27 @@ export class JobRunner {
               : voiceRunning
                 ? MODULE_META.module5b_voice_generator.stage
                 : MODULE_META[event.module].stage;
-        const updated = await this.store.update(jobId, {
+        const isDocumentAnalysis =
+          (current.kind ?? "VIDEO") === "DOCUMENT" &&
+          event.module === "module1_document_intelligence";
+        const reportedProgress =
+          isDocumentAnalysis && event.progress !== undefined
+            ? event.progress
+            : undefined;
+        const progress = isDocumentAnalysis
+          ? Math.max(
+              current.progress,
+              reportedProgress ?? 0,
+              event.type === "MODULE_COMPLETED" ? 98 : 2,
+            )
+          : Math.max(2, moduleProgress(states));
+        await this.store.update(jobId, {
           modules: states,
           stage:
             event.type === "MODULE_FAILED"
               ? `${MODULE_META[event.module].stage}_FAILED`
-              : stage,
-          progress: Math.max(2, moduleProgress(states)),
+              : event.stage ?? stage,
+          progress,
           failed_module:
             event.type === "MODULE_FAILED" ? event.module : undefined,
         });
@@ -531,9 +549,10 @@ export class JobRunner {
         : failedEvent?.error ??
           stderr.trim().split(/\r?\n/u).at(-1) ??
           `Pipeline exit code ${exitCode}.`;
+      const durationFailure = isDurationFailure(error);
       const recommendedResumeFrom: PipelineModuleId =
         failedModule === "module6_video_composer" &&
-        error.includes("DURATION_OUT_OF_RANGE")
+        durationFailure
           ? "module3_script_generator"
           : failedModule;
       states[failedModule] = {
@@ -551,7 +570,7 @@ export class JobRunner {
         resume_from: recommendedResumeFrom,
         bypass_generation_cache:
           recommendedResumeFrom === "module3_script_generator" &&
-          error.includes("DURATION_OUT_OF_RANGE"),
+          durationFailure,
         run_directory: path.join(
           this.projectDirectory,
           "runs",

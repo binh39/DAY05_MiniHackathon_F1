@@ -1,25 +1,21 @@
 import {
   Bell,
   ChevronDown,
-  CircleHelp,
-  FileText,
-  Library,
   LogOut,
   Menu,
-  Plus,
   Settings,
-  Video,
   X,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "../contexts";
 import { NavLink, useNavigate, useRouter } from "../router";
+import { ThemeToggle } from "../theme";
 import { Logo } from "./Logo";
 
 const navigation = [
-  { to: "/app/create", label: "Tạo video mới", icon: Plus, primary: true },
-  { to: "/app/documents", label: "Tài liệu của tôi", icon: FileText },
-  { to: "/app/videos", label: "Video của tôi", icon: Video },
+  { to: "/app/create", label: "Tạo bài giảng" },
+  { to: "/app/documents", label: "Tài liệu" },
+  { to: "/app/videos", label: "Video của tôi" },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -39,95 +35,83 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? "is-open" : ""}`}>
-        <div className="sidebar-head">
+      <header className="app-header">
+        <div className="app-header-inner">
           <Logo />
-          <button
-            className="icon-button sidebar-close"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Đóng menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <nav className="sidebar-nav">
-          {navigation.map(({ to, label, icon: Icon, primary }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `nav-item ${primary ? "nav-primary" : ""} ${isActive ? "active" : ""}`
-              }
+          <nav className="header-nav" aria-label="Điều hướng AI Lecture">
+            {navigation.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => `header-nav-item ${isActive ? "active" : ""}`}
+              >
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+          <div className="header-actions">
+            <a
+              className="codelabs-link"
+              href="https://codelabs.vlearn.dev"
+              target="_blank"
+              rel="noreferrer"
             >
-              <Icon size={20} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-          <div className="nav-divider" />
-          <button className="nav-item ghost-nav">
-            <Library size={20} />
-            <span>Mẫu video</span>
-            <span className="soon-pill">Sắp có</span>
-          </button>
-        </nav>
-        <div className="sidebar-bottom">
-          <button className="nav-item ghost-nav">
-            <CircleHelp size={20} />
-            <span>Trợ giúp</span>
-          </button>
-          <button className="nav-item ghost-nav">
-            <Settings size={20} />
-            <span>Cài đặt</span>
-          </button>
-        </div>
-      </aside>
-      {mobileOpen && (
-        <button
-          className="sidebar-overlay"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Đóng menu"
-        />
-      )}
-
-      <div className="app-main">
-        <header className="topbar">
-          <button
-            className="icon-button mobile-menu"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Mở menu"
-          >
-            <Menu size={22} />
-          </button>
-          <div className="topbar-spacer" />
-          <button className="icon-button notification-button" aria-label="Thông báo">
-            <Bell size={20} />
-            <span />
-          </button>
-          <div className="profile-wrap">
-            <button
-              className="profile-button"
-              onClick={() => setProfileOpen((value) => !value)}
-            >
-              <span className="avatar">{user?.name.charAt(0) ?? "M"}</span>
-              <span className="profile-copy">
-                <strong>{user?.name ?? "Minh Anh"}</strong>
-                <small>Gói Starter</small>
-              </span>
-              <ChevronDown size={17} />
+              Codelabs
+            </a>
+            <ThemeToggle compact />
+            <button className="icon-button notification-button" aria-label="Thông báo">
+              <Bell size={19} />
+              <span />
             </button>
-            {profileOpen && (
-              <div className="profile-menu">
-                <button>
-                  <Settings size={17} /> Cài đặt tài khoản
-                </button>
-                <button onClick={() => void signOut()}>
-                  <LogOut size={17} /> Đăng xuất
-                </button>
-              </div>
-            )}
+            <div className="profile-wrap">
+              <button
+                className="profile-button"
+                onClick={() => setProfileOpen((value) => !value)}
+                aria-expanded={profileOpen}
+              >
+                <span className="avatar">{user?.name.charAt(0) ?? "M"}</span>
+                <span className="profile-copy" aria-hidden="true">
+                  <strong>{user?.name ?? "Minh Anh"}</strong>
+                  <small>{user?.email ?? "VLearn learner"}</small>
+                </span>
+                <ChevronDown size={16} />
+              </button>
+              {profileOpen && (
+                <div className="profile-menu">
+                  <button>
+                    <Settings size={16} /> Cài đặt tài khoản
+                  </button>
+                  <button onClick={() => void signOut()}>
+                    <LogOut size={16} /> Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              className="icon-button mobile-menu"
+              onClick={() => setMobileOpen((value) => !value)}
+              aria-label={mobileOpen ? "Đóng menu" : "Mở menu"}
+            >
+              {mobileOpen ? <X size={21} /> : <Menu size={21} />}
+            </button>
           </div>
-        </header>
+        </div>
+        {mobileOpen && (
+          <nav className="mobile-navigation" aria-label="Điều hướng di động">
+            {navigation.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => `mobile-nav-item ${isActive ? "active" : ""}`}
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
+      </header>
+      <div className="app-main">
         <main className={`page-content ${summaryOpen ? "summary-open" : ""}`}>
           {children}
         </main>

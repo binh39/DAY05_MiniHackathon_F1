@@ -3,7 +3,7 @@ import type {
   LecturePlanArtifact,
   ScriptArtifact,
 } from "../../core/contracts.js";
-import { SCRIPT_DURATION_TOLERANCE_RATE } from "./duration-budget.js";
+import { preTtsDurationToleranceSeconds } from "../../core/speech-duration.js";
 
 function findDuplicates(values: string[]): string[] {
   const seen = new Set<string>();
@@ -55,14 +55,10 @@ export function validateScript(
   for (const chapter of script.chapters) {
     const plannedChapter = planChapterById.get(chapter.chapter_id);
     if (!plannedChapter) continue;
-    // Each narration duration is rounded up to a whole second. A small
-    // aggregate margin avoids rejecting a script only because of rounding.
-    const durationToleranceSeconds = Math.max(
-      3,
-      Math.ceil(
-        plannedChapter.duration_seconds *
-          SCRIPT_DURATION_TOLERANCE_RATE,
-      ),
+    // This is a pre-TTS guard, not the final media duration check. Module 6 uses
+    // measured WAV durations and safely fits them to the requested target.
+    const durationToleranceSeconds = preTtsDurationToleranceSeconds(
+      plannedChapter.duration_seconds,
     );
     if (
       chapter.estimated_duration_seconds >

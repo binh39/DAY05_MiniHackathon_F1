@@ -15,6 +15,7 @@ import type {
   VoiceManifest,
 } from "../../core/contracts.js";
 import { buildCoverageReport } from "./coverage-report.js";
+import { fitNarrationDuration } from "./duration-fit.js";
 import { runMediaCommand } from "./ffmpeg.js";
 import {
   createSegmentCacheKey,
@@ -146,35 +147,18 @@ export async function composeVideo(
 ): Promise<VideoManifest> {
   validateInputs(storyboard, visuals, voices);
   const rawTimeline = buildTimeline(storyboard, voices, config.render.fps);
-  const outsideRange =
-    rawTimeline.durationSeconds < config.duration.min_seconds ||
-    rawTimeline.durationSeconds > config.duration.max_seconds;
-  const rangeInsetSeconds = Math.min(
-    3,
-    (config.duration.max_seconds - config.duration.min_seconds) * 0.02,
-  );
-  const desiredDuration = outsideRange
-    ? rawTimeline.durationSeconds < config.duration.min_seconds
-      ? config.duration.min_seconds + rangeInsetSeconds
-      : config.duration.max_seconds - rangeInsetSeconds
-    : rawTimeline.durationSeconds;
   const fixedGapSeconds = rawTimeline.scenes.reduce(
     (total, scene) => total + scene.gapSeconds,
     0,
   );
-  const desiredVoiceSeconds = desiredDuration - fixedGapSeconds;
-  if (desiredVoiceSeconds <= 0) {
-    throw new Error(
-      "DURATION_OUT_OF_RANGE: khoảng nghỉ chapter đã vượt toàn bộ duration budget.",
-    );
-  }
-  const audioTempo =
-    (rawTimeline.durationSeconds - fixedGapSeconds) / desiredVoiceSeconds;
-  if (outsideRange && (audioTempo < 0.8 || audioTempo > 1.25)) {
-    throw new Error(
-      `DURATION_OUT_OF_RANGE: audio thực tế ${rawTimeline.durationSeconds.toFixed(2)}s, yêu cầu ${config.duration.min_seconds}-${config.duration.max_seconds}s. Độ lệch quá lớn để hiệu chỉnh tốc độ đọc an toàn.`,
-    );
-  }
+  const durationFit = fitNarrationDuration({
+    rawDurationSeconds: rawTimeline.durationSeconds,
+    fixedGapSeconds,
+    minSeconds: config.duration.min_seconds,
+    maxSeconds: config.duration.max_seconds,
+    targetSeconds: config.duration.target_seconds,
+  });
+  const { audioTempo } = durationFit;
   const adjustedVoices: VoiceManifest =
     Math.abs(audioTempo - 1) > 0.001
       ? {
@@ -244,6 +228,7 @@ export async function composeVideo(
       config.render.width,
       config.render.height,
       config.render.fps,
+      audioTempo,
     );
     const cached = await readSegmentCache(
       projectDirectory,
@@ -365,7 +350,12 @@ export async function composeVideo(
         : []),
       ...(Math.abs(audioTempo - 1) > 0.001
         ? [
-            `Đã hiệu chỉnh tốc độ audio ${audioTempo.toFixed(3)}x để giữ video trong khoảng ${config.duration.min_seconds}-${config.duration.max_seconds}s.`,
+            `Đã hiệu chỉnh tốc độ audio ${audioTempo.toFixed(3)}x để narration lấp đầy video gần mốc ${config.duration.target_seconds}s (kết quả ${probe.durationSeconds.toFixed(2)}s).`,
+          ]
+        : []),
+      ...(durationFit.mode === "RECOVERY"
+        ? [
+            "Đã dùng biên hiệu chỉnh phục hồi cho audio cũ; tạo lại từ module Viết kịch bản sẽ cho nhịp đọc tự nhiên hơn.",
           ]
         : []),
     ],

@@ -155,6 +155,78 @@ interface LibraryContextValue {
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
+function documentFingerprint(name: string, sizeBytes: number): string {
+  return `${name.trim().toLocaleLowerCase("vi-VN")}::${sizeBytes}`;
+}
+
+function hasCompletedDocumentAnalysis(job: ApiJob): boolean {
+  return (
+    job.stage === "DOCUMENT_READY" ||
+    job.modules?.module1_document_intelligence.status === "COMPLETED"
+  );
+}
+
+function documentJobPriority(job: ApiJob): number {
+  const isActive =
+    job.status === "QUEUED" ||
+    job.status === "RUNNING" ||
+    job.status === "AWAITING_APPROVAL";
+  if (job.kind === "VIDEO" && isActive) return 60;
+  if (job.kind === "VIDEO" && job.status === "COMPLETED") return 50;
+  if (job.kind === "DOCUMENT" && hasCompletedDocumentAnalysis(job)) return 40;
+  if (job.kind === "DOCUMENT" && isActive) return 30;
+  if (job.kind === "VIDEO" && job.status === "FAILED") return 20;
+  return 10;
+}
+
+function groupDocumentJobs(jobs: ApiJob[]): Array<{
+  representative: ApiJob;
+  summaryJob?: ApiJob;
+  sourceJob: ApiJob;
+  pages?: number;
+}> {
+  const groups = new Map<string, ApiJob[]>();
+  for (const job of jobs) {
+    const key = documentFingerprint(
+      job.original_filename,
+      job.input_size_bytes,
+    );
+    const group = groups.get(key);
+    if (group) group.push(job);
+    else groups.set(key, [job]);
+  }
+
+  return [...groups.values()]
+    .map((group) => {
+      const representative = group.reduce((selected, candidate) => {
+        const selectedPriority = documentJobPriority(selected);
+        const candidatePriority = documentJobPriority(candidate);
+        if (candidatePriority !== selectedPriority) {
+          return candidatePriority > selectedPriority ? candidate : selected;
+        }
+        return candidate.created_at > selected.created_at ? candidate : selected;
+      });
+      const sourceJob = [...group].sort((left, right) =>
+        left.created_at.localeCompare(right.created_at),
+      )[0]!;
+      const summaryJob =
+        group.find(
+          (job) =>
+            job.kind === "DOCUMENT" && hasCompletedDocumentAnalysis(job),
+        ) ?? group.find(hasCompletedDocumentAnalysis);
+      const pages =
+        representative.document_pages ??
+        summaryJob?.document_pages ??
+        group.find((job) => job.document_pages)?.document_pages;
+      return { representative, summaryJob, sourceJob, pages };
+    })
+    .sort((left, right) =>
+      right.representative.updated_at.localeCompare(
+        left.representative.updated_at,
+      ),
+    );
+}
+
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -211,23 +283,34 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         failedModule: job.retry_from ?? job.failed_module,
       })),
     );
-    const remoteDocuments: DocumentItem[] = jobs.map((job) => ({
-      id: `job-doc-${job.id}`,
-      jobId: job.id,
-      name: job.original_filename,
-      size: `${(job.input_size_bytes / 1024 / 1024)
-        .toFixed(1)
-        .replace(".", ",")} MB`,
-      sizeBytes: job.input_size_bytes,
-      pages: job.document_pages,
-      uploadedAt: new Date(job.created_at).toLocaleString("vi-VN"),
-      status:
-        job.modules?.module1_document_intelligence.status === "COMPLETED" ||
-        job.stage === "DOCUMENT_READY"
-          ? "ready"
-          : "analyzing",
-      color: "#7658f6",
-    }));
+    const remoteDocuments: DocumentItem[] = groupDocumentJobs(jobs).map(
+      ({ representative: job, summaryJob, sourceJob, pages }) => {
+      const isDocumentReady =
+        job.kind === "DOCUMENT" &&
+        hasCompletedDocumentAnalysis(job);
+      const hasVideoJob = job.kind === "VIDEO";
+      return {
+        id: `job-doc-${job.id}`,
+        jobId: job.id,
+        summaryJobId: summaryJob?.id,
+        name: job.original_filename,
+        size: `${(job.input_size_bytes / 1024 / 1024)
+          .toFixed(1)
+          .replace(".", ",")} MB`,
+        sizeBytes: job.input_size_bytes,
+        pages,
+        uploadedAt: new Date(sourceJob.created_at).toLocaleString("vi-VN"),
+        status: isDocumentReady ? "ready" : hasVideoJob ? "video" : "analyzing",
+        progress: isDocumentReady
+          ? 100
+          : hasVideoJob
+            ? Math.max(0, Math.min(100, job.progress))
+            : Math.max(0, Math.min(99, job.progress)),
+        stage: job.stage,
+        color: "#40c2fd",
+      };
+      },
+    );
     setVideos(remoteVideos);
     setDocuments(remoteDocuments);
   }
@@ -252,7 +335,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       }
     }
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 3_000);
+    const timer = window.setInterval(() => void refresh(), 1_500);
     return () => {
       stopped = true;
       window.clearInterval(timer);
@@ -273,17 +356,37 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const documentId = `job-doc-${job.id}`;
     const size = `${(input.documentSizeBytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
     setDocuments((current) => {
+      const fingerprint = documentFingerprint(
+        input.documentName,
+        input.documentSizeBytes,
+      );
+      const existingDocument = current.find(
+        (item) => documentFingerprint(item.name, item.sizeBytes) === fingerprint,
+      );
       const document: DocumentItem = {
         id: documentId,
         jobId: job.id,
+        summaryJobId:
+          existingDocument?.summaryJobId ??
+          input.documentId ??
+          existingDocument?.jobId,
         name: input.documentName,
         size,
         sizeBytes: input.documentSizeBytes,
         uploadedAt: "Vừa xong",
-        status: "analyzing",
-        color: "#7658f6",
+        status: "video",
+        progress: job.progress,
+        stage: job.stage,
+        color: "#40c2fd",
       };
-      return [document, ...current.filter((item) => item.id !== documentId)];
+      return [
+        document,
+        ...current.filter(
+          (item) =>
+            item.id !== documentId &&
+            documentFingerprint(item.name, item.sizeBytes) !== fingerprint,
+        ),
+      ];
     });
     setVideos((current) => {
       const video: VideoItem = {

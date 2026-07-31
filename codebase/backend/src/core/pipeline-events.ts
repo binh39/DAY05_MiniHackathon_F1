@@ -23,9 +23,16 @@ export const PIPELINE_MODULES: PipelineModuleId[] = [
 ];
 
 export const pipelineEventSchema = z.object({
-  type: z.enum(["MODULE_STARTED", "MODULE_COMPLETED", "MODULE_FAILED"]),
+  type: z.enum([
+    "MODULE_STARTED",
+    "MODULE_PROGRESS",
+    "MODULE_COMPLETED",
+    "MODULE_FAILED",
+  ]),
   module: pipelineModuleIdSchema,
   at: z.string().datetime(),
+  progress: z.number().int().min(0).max(100).optional(),
+  stage: z.string().min(1).optional(),
   error: z.string().optional(),
 });
 

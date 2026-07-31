@@ -1,4 +1,8 @@
 import type { PipelineConfig } from "../../core/config.js";
+import {
+  narrationWordBudget,
+  spokenWordsPerMinute,
+} from "../../core/speech-duration.js";
 import type {
   DocumentArtifact,
   LecturePlanArtifact,
@@ -73,7 +77,13 @@ function estimateItem(
       total + estimateSourceWords(source, treatment, multiplier),
     0,
   );
-  const narrationSeconds = (words / 125) * 60;
+  const narrationSeconds =
+    (words /
+      spokenWordsPerMinute(
+        config.language,
+        config.voice.speaking_rate,
+      )) *
+    60;
 
   let additionalVisualSeconds = 0;
   if (treatment === "EXPLAIN" || treatment === "SHOW") {
@@ -198,12 +208,10 @@ export function buildLecturePlan(
         ...item,
         duration_seconds: durationSeconds,
         estimated_narration_words: teaches
-          ? Math.max(
-              1,
-              Math.floor(
-                (durationSeconds / 60) *
-                  PLANNED_SPEECH_WORDS_PER_MINUTE,
-              ),
+          ? narrationWordBudget(
+              durationSeconds,
+              config.language,
+              config.voice.speaking_rate,
             )
           : 0,
       };

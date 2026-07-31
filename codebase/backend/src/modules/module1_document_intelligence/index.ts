@@ -6,6 +6,7 @@ import {
 import {
   type PipelineModule,
 } from "../../core/module.js";
+import { emitPipelineEvent } from "../../core/pipeline-events.js";
 import { analyzePdfWithGemini } from "./gemini-document-analyzer.js";
 import {
   createAnalysisCacheKey,
@@ -15,6 +16,16 @@ import {
 import { renderPdfPages } from "./page-renderer.js";
 import { validatePdf } from "./pdf-validator.js";
 import { getVertexEnvironment } from "../../providers/google/gemini-client.js";
+
+function reportAnalysisProgress(progress: number, stage: string): void {
+  emitPipelineEvent({
+    type: "MODULE_PROGRESS",
+    module: "module1_document_intelligence",
+    at: new Date().toISOString(),
+    progress,
+    stage,
+  });
+}
 
 export const module1DocumentIntelligence: PipelineModule<
   PipelineConfig,
@@ -26,7 +37,9 @@ export const module1DocumentIntelligence: PipelineModule<
   outputFile: "01_document.json",
   outputSchema: documentSchema,
   async run(config, context) {
+    reportAnalysisProgress(5, "VALIDATING_PDF");
     const pdf = await validatePdf(config, context.projectDirectory);
+    reportAnalysisProgress(15, "PREPARING_ANALYSIS");
     const environment = getVertexEnvironment();
     const cacheKey = createAnalysisCacheKey(
       pdf,
@@ -36,20 +49,36 @@ export const module1DocumentIntelligence: PipelineModule<
     let analysis = await readAnalysisCache(context.projectDirectory, cacheKey);
     if (analysis) {
       process.stdout.write("  Document analysis cache hit.\n");
+      reportAnalysisProgress(68, "READING_DOCUMENT_CONTENT");
     } else {
+      reportAnalysisProgress(28, "READING_DOCUMENT_CONTENT");
       analysis = await analyzePdfWithGemini(pdf, config);
+      reportAnalysisProgress(70, "STRUCTURING_DOCUMENT");
       await writeAnalysisCache(context.projectDirectory, cacheKey, analysis);
     }
 
+    let lastRenderProgress = 70;
+    reportAnalysisProgress(lastRenderProgress, "RENDERING_PAGES");
     const pageAssets = await renderPdfPages(
       pdf,
       context.projectDirectory,
       context.runDirectory,
+      (completedPages, totalPages) => {
+        const nextProgress = Math.min(
+          96,
+          70 + Math.round((completedPages / totalPages) * 26),
+        );
+        if (nextProgress > lastRenderProgress) {
+          lastRenderProgress = nextProgress;
+          reportAnalysisProgress(nextProgress, "RENDERING_PAGES");
+        }
+      },
     );
     const assetsByPage = new Map(
       pageAssets.map((assets) => [assets.page, assets]),
     );
 
+    reportAnalysisProgress(98, "FINALIZING_DOCUMENT");
     return {
       schema_version: "1.0",
       title: analysis.title,

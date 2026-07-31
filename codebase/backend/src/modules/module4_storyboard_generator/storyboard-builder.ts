@@ -13,6 +13,12 @@ type Source = DocumentArtifact["sources"][number];
 type Narration = ScriptArtifact["chapters"][number]["narrations"][number];
 type Route = ChapterStoryboardDecision["routes"][number];
 
+const DURATION_PRECISION_DIGITS = 3;
+
+function normalizedDuration(value: number): number {
+  return Number(value.toFixed(DURATION_PRECISION_DIGITS));
+}
+
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
@@ -256,9 +262,14 @@ export function buildStoryboard(
   const validSourceIds = new Set(
     document.sources.map((source) => source.source_id),
   );
-  const storyboardDuration = scenes.reduce(
-    (total, scene) => total + scene.estimated_duration_seconds,
-    0,
+  const storyboardDuration = normalizedDuration(
+    scenes.reduce(
+      (total, scene) => total + scene.estimated_duration_seconds,
+      0,
+    ),
+  );
+  const durationDelta = normalizedDuration(
+    Math.abs(storyboardDuration - script.estimated_duration_seconds),
   );
 
   return {
@@ -281,9 +292,7 @@ export function buildStoryboard(
           .flatMap((scene) => scene.visual.source_ids)
           .filter((sourceId) => !validSourceIds.has(sourceId)),
       ),
-      duration_delta_seconds: Math.abs(
-        storyboardDuration - script.estimated_duration_seconds,
-      ),
+      duration_delta_seconds: durationDelta,
     },
   };
 }

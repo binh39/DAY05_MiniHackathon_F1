@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { constants, createReadStream, createWriteStream } from "node:fs";
 import {
   copyFile,
@@ -31,6 +31,7 @@ import {
   moduleProgress,
   moduleStatesForRetry,
 } from "./job-runner.js";
+import { isDurationFailure } from "./duration-retry.js";
 import { JobStore } from "./job-store.js";
 import {
   cloudRunJobDispatcher,
@@ -436,6 +437,34 @@ export async function createServer(
     return job.owner_uid === user.uid;
   }
 
+  async function findReusableDocument(
+    user: AuthenticatedUser,
+    filename: string,
+    input: Buffer,
+  ): Promise<JobRecord | undefined> {
+    const normalizedFilename = filename.toLocaleLowerCase("vi");
+    const inputDigest = createHash("sha256").update(input).digest("hex");
+    const candidates = store.list().filter(
+      (job) =>
+        ownsJob(job, user) &&
+        job.kind === "DOCUMENT" &&
+        job.stage === "DOCUMENT_READY" &&
+        job.input_size_bytes === input.length &&
+        job.original_filename.toLocaleLowerCase("vi") === normalizedFilename,
+    );
+    for (const candidate of candidates) {
+      try {
+        const candidateDigest = createHash("sha256")
+          .update(await readFile(candidate.input_file))
+          .digest("hex");
+        if (candidateDigest === inputDigest) return candidate;
+      } catch {
+        // A missing local source cannot be reused safely.
+      }
+    }
+    return undefined;
+  }
+
   async function loadOutlineArtifacts(job: JobRecord) {
     job = await materializeRunDirectory(job, [
       "00_config.json",
@@ -617,6 +646,40 @@ export async function createServer(
       }
       const inputStat = await stat(uploadPath);
       const parsedFields = createJobFieldsSchema.parse(fields);
+      const reusableDocument = await findReusableDocument(
+        user,
+        originalFilename,
+        header,
+      );
+      if (reusableDocument) {
+        assertCanCreateJob(
+          quotaSnapshot(store.list(), user.uid, quotaLimits),
+          0,
+          parsedFields,
+        );
+        const states = initialModuleStates();
+        states.module1_document_intelligence = {
+          status: "COMPLETED",
+          ...reusableDocument.modules?.module1_document_intelligence,
+        };
+        const updated = await store.update(reusableDocument.id, {
+          kind: "VIDEO",
+          fields: parsedFields,
+          quota_reserved_seconds: reservationSeconds(parsedFields),
+          status: "QUEUED",
+          stage: "QUEUED",
+          progress: moduleProgress(states),
+          modules: states,
+          resume_from: "module2_lecture_planner",
+          failed_module: undefined,
+          error: undefined,
+        });
+        await unlink(uploadPath).catch(() => undefined);
+        uploaded = false;
+        fileWritten = false;
+        if (autoRunJobs) runner.enqueue(updated.id);
+        return reply.code(202).send(toPublicJob(updated));
+      }
       assertCanCreateJob(
         quotaSnapshot(store.list(), user.uid, quotaLimits),
         inputStat.size,
@@ -1032,8 +1095,7 @@ export async function createServer(
           ? await materializeRunDirectory(job, ["01_document.json"])
           : job;
       const attempt = job.attempt + 1;
-      const durationRepair =
-        job.error?.includes("DURATION_OUT_OF_RANGE") ?? false;
+      const durationRepair = isDurationFailure(job.error);
       const retryModule = durationRepair
         ? "module3_script_generator"
         : resumableJob.resume_from ?? resumableJob.failed_module;

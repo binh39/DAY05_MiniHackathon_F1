@@ -3,6 +3,7 @@ import {
   PIPELINE_MODULES,
   type PipelineModuleId,
 } from "../core/pipeline-events.js";
+import { isDurationFailure } from "./duration-retry.js";
 
 export const aspectRatioSchema = z.enum(["16:9", "9:16", "1:1"]);
 export const durationOptionSchema = z.enum([
@@ -201,7 +202,7 @@ export function toPublicJob(job: JobRecord): PublicJob {
     has_feedback: Boolean(job.feedback),
     modules: job.modules,
     failed_module: job.failed_module,
-    retry_from: job.error?.includes("DURATION_OUT_OF_RANGE")
+    retry_from: isDurationFailure(job.error)
       ? "module3_script_generator"
       : job.resume_from,
     artifacts:

@@ -70,9 +70,17 @@ function stageLabel(stage?: string): string {
 function ModuleProgress({ modules }: { modules: PipelineModuleStates }) {
   function item(module: PipelineModuleId) {
     const state = modules[module];
+    const stateLabel =
+      state.status === "COMPLETED"
+        ? "Hoàn tất"
+        : state.status === "RUNNING"
+          ? "Đang chạy"
+          : state.status === "FAILED"
+            ? "Cần thử lại"
+            : "Đang chờ";
     return (
       <div className={`pipeline-module ${state.status.toLowerCase()}`} key={module}>
-        <span>
+        <span className="pipeline-module-marker">
           {state.status === "COMPLETED"
             ? "✓"
             : state.status === "RUNNING"
@@ -81,12 +89,19 @@ function ModuleProgress({ modules }: { modules: PipelineModuleStates }) {
                 ? "!"
                 : "○"}
         </span>
-        <strong>{moduleLabels[module]}</strong>
+        <div>
+          <strong>{moduleLabels[module]}</strong>
+          <small>{stateLabel}</small>
+        </div>
       </div>
     );
   }
   return (
     <div className="pipeline-module-list">
+      <div className="pipeline-module-list-heading">
+        <span>Chuỗi tạo video</span>
+        <small>6 bước tự động</small>
+      </div>
       {item("module1_document_intelligence")}
       {item("module2_lecture_planner")}
       {item("module3_script_generator")}
@@ -113,11 +128,17 @@ export function VideosPage() {
   const [resultLoading, setResultLoading] = useState(false);
   const [resultError, setResultError] = useState("");
   const [activeChapterId, setActiveChapterId] = useState("");
+  const [learningTab, setLearningTab] = useState<"chapters" | "sources">(
+    "chapters",
+  );
+  const [learningPanelOpen, setLearningPanelOpen] = useState(true);
   const [sourcePage, setSourcePage] = useState<{
     page: number;
     imageUrl: string;
   } | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [retryError, setRetryError] = useState("");
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [toast, setToast] = useState(
     Boolean(
@@ -136,6 +157,20 @@ export function VideosPage() {
     const timer = window.setTimeout(() => setToast(false), 3800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPlaying(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [playing]);
 
   useEffect(() => {
     let stopped = false;
@@ -202,6 +237,12 @@ export function VideosPage() {
     if (chapter) setActiveChapterId(chapter.chapter_id);
   }
 
+  function openVideo(video: VideoItem) {
+    setLearningTab("chapters");
+    setLearningPanelOpen(true);
+    setPlaying(video);
+  }
+
   async function showSourcePage(pageNumber: number) {
     const page = result?.pages.find((item) => item.page === pageNumber);
     if (!page) return;
@@ -238,8 +279,25 @@ export function VideosPage() {
     }
   }
 
+  async function retryFailedVideo(video: VideoItem) {
+    if (!video.jobId) return;
+    try {
+      setRetryError("");
+      setRetryingJobId(video.jobId);
+      await retryVideo(video.jobId);
+    } catch (error) {
+      setRetryError(
+        error instanceof Error
+          ? error.message
+          : "Không thể chạy lại video. Vui lòng thử lại.",
+      );
+    } finally {
+      setRetryingJobId(null);
+    }
+  }
+
   return (
-    <div className="library-page videos-page page-enter">
+    <div className={`library-page videos-page page-enter ${playing ? "video-open" : ""}`}>
       {toast && (
         <div className="success-toast">
           <CheckCircle2 size={20} />
@@ -306,6 +364,7 @@ export function VideosPage() {
         </div>
       </div>
       {deleteError && <p className="library-error">{deleteError}</p>}
+      {retryError && <p className="library-error">{retryError}</p>}
 
       <div className="video-grid">
         {filtered.map((video) => (
@@ -320,7 +379,7 @@ export function VideosPage() {
               {video.status === "ready" ? (
                 <button
                   className="play-button"
-                  onClick={() => setPlaying(video)}
+                  onClick={() => openVideo(video)}
                   aria-label="Xem video"
                 ><Play size={22} fill="currentColor" /></button>
               ) : video.status === "review" ? (
@@ -352,17 +411,35 @@ export function VideosPage() {
                   {video.jobId && (
                     <button
                       className="retry-button"
-                      onClick={() => void retryVideo(video.jobId!)}
+                      disabled={retryingJobId === video.jobId}
+                      onClick={() => void retryFailedVideo(video)}
                     >
-                      {video.failedModule ? "Tiếp tục từ module lỗi" : "Thử lại"}
+                      {retryingJobId === video.jobId
+                        ? "Đang khởi chạy lại..."
+                        : video.failedModule
+                          ? "Tiếp tục từ module lỗi"
+                          : "Thử lại"}
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="processing-overlay">
-                  <span className="spinner large" />
-                  <strong>Đang tạo video...</strong>
-                  <small>{video.progress ?? 18}%</small>
+                <div className="processing-overlay processing-overlay-live">
+                  <div
+                    className="processing-percent"
+                    style={{
+                      background: `conic-gradient(#58cdfd ${video.progress ?? 18}%, rgba(255, 255, 255, 0.18) 0)`,
+                    }}
+                  >
+                    <div>
+                      <strong>{video.progress ?? 18}</strong>
+                      <small>%</small>
+                    </div>
+                  </div>
+                  <div className="processing-overlay-copy">
+                    <span><Clock3 size={13} /> ĐANG TẠO VIDEO</span>
+                    <strong>{stageLabel(video.stage)}</strong>
+                    <small>Theo dõi chi tiết từng bước ở bên dưới</small>
+                  </div>
                 </div>
               )}
               {video.status === "ready" && <span className="duration-badge">{video.duration}</span>}
@@ -371,7 +448,18 @@ export function VideosPage() {
             <div className="video-info">
               <div className="video-title-row">
                 <div>
-                  <strong>{video.title}</strong>
+                  <div className="video-title-with-status">
+                    <strong>{video.title}</strong>
+                    <span className={`video-state-chip ${video.status}`}>
+                      {video.status === "ready"
+                        ? "Hoàn tất"
+                        : video.status === "processing"
+                          ? "Đang tạo"
+                          : video.status === "review"
+                            ? "Chờ duyệt"
+                            : "Cần xử lý"}
+                    </span>
+                  </div>
                   <p>{video.documentName}</p>
                 </div>
                 {video.status !== "processing" && video.jobId && (
@@ -396,8 +484,11 @@ export function VideosPage() {
                 </div>
               ) : video.status === "processing" ? (
                 <div className="processing-bar">
-                  <div>
-                    <span>{stageLabel(video.stage)}</span>
+                  <div className="processing-progress-heading">
+                    <div>
+                      <span>Tiến trình hiện tại</span>
+                      <small>{stageLabel(video.stage)}</small>
+                    </div>
                     <strong>{video.progress ?? 18}%</strong>
                   </div>
                   <div className="storage-track"><span style={{ width: `${video.progress ?? 18}%` }} /></div>
@@ -442,141 +533,200 @@ export function VideosPage() {
       )}
 
       {playing && (
-        <div className="modal-backdrop video-modal-backdrop" onClick={() => setPlaying(null)}>
-          <div className="video-player-modal" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setPlaying(null)} aria-label="Đóng video"><X size={20} /></button>
-            <div className="video-viewer-stage">
-              {playing.videoUrl ? (
-                <video
-                  ref={videoRef}
-                  className="real-player"
-                  controls
-                  autoPlay
-                  src={playing.videoUrl}
-                  onTimeUpdate={updateActiveChapter}
-                />
-              ) : (
-                <div className={`fake-player theme-${playing.color}`}>
-                  <div className="fake-player-copy">
-                    <small>LECTUREAI · BÀI GIẢNG</small>
-                    <strong>{playing.title}</strong>
-                    <span>{playing.documentName}</span>
-                  </div>
-                  <button><Pause size={25} fill="currentColor" /></button>
-                  <div className="player-controls">
-                    <span>03:26</span><div><i /></div><span>{playing.duration}</span>
-                  </div>
+        <div
+          className="modal-backdrop video-modal-backdrop"
+        >
+          <div
+            className="video-player-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="video-player-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="video-player-toolbar">
+              <div className="video-player-heading">
+                <span>AI Lecture Video</span>
+                <i aria-hidden="true" />
+                <strong id="video-player-title">
+                  {activeChapter?.title ?? playing.title}
+                </strong>
+              </div>
+              <div className="video-player-toolbar-actions">
+                {playing.jobId && (
+                  <button
+                    className="video-toolbar-action"
+                    onClick={() => setLearningPanelOpen((value) => !value)}
+                    aria-expanded={learningPanelOpen}
+                    aria-controls="video-learning-panel"
+                  >
+                    <ListChecks size={16} />
+                    <span>{learningPanelOpen ? "Ẩn nội dung" : "Mở nội dung"}</span>
+                  </button>
+                )}
+                {playing.videoUrl && (
+                  <a className="video-toolbar-action" href={playing.videoUrl} download>
+                    <Download size={16} />
+                    <span>Tải video</span>
+                  </a>
+                )}
+                <button
+                  className="modal-close"
+                  onClick={() => setPlaying(null)}
+                  aria-label="Đóng video"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </header>
+
+            <div
+              className={`video-player-workspace ${
+                playing.jobId && learningPanelOpen
+                  ? "with-learning-panel"
+                  : "without-learning-panel"
+              }`}
+            >
+              <section className="video-media-column" aria-label="Trình phát bài giảng">
+                <div className="video-viewer-stage">
+                  {playing.videoUrl ? (
+                    <video
+                      ref={videoRef}
+                      className="real-player"
+                      controls
+                      autoPlay
+                      playsInline
+                      src={playing.videoUrl}
+                      onTimeUpdate={updateActiveChapter}
+                    />
+                  ) : (
+                    <div className={`fake-player theme-${playing.color}`}>
+                      <div className="fake-player-copy">
+                        <small>LECTUREAI · BÀI GIẢNG</small>
+                        <strong>{playing.title}</strong>
+                        <span>{playing.documentName}</span>
+                      </div>
+                      <button aria-label="Tạm dừng"><Pause size={25} fill="currentColor" /></button>
+                      <div className="player-controls">
+                        <span>03:26</span><div><i /></div><span>{playing.duration}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {playing.jobId && (
-              <div className="result-learning-panel">
-                {resultLoading ? (
-                  <div className="result-panel-state">
-                    <span className="spinner" /> Đang tải chapter và nguồn...
+                <div className="video-player-caption">
+                  <div>
+                    <small>{activeChapter ? "ĐANG XEM" : "BÀI GIẢNG"}</small>
+                    <strong>{activeChapter?.title ?? playing.title}</strong>
                   </div>
-                ) : resultError && !result ? (
-                  <div className="result-panel-state error">
-                    <AlertTriangle size={17} /> {resultError}
+                  <span>{playing.duration}</span>
+                </div>
+              </section>
+
+              {playing.jobId && learningPanelOpen && (
+                <aside className="result-learning-panel" id="video-learning-panel">
+                  <div className="learning-panel-heading">
+                    <div>
+                      <small>VLEARN STUDIO</small>
+                      <strong>Nội dung khóa học</strong>
+                    </div>
                   </div>
-                ) : result ? (
-                  <>
-                    <div className="result-panel-grid">
-                      <aside className="chapter-navigation">
-                        <div className="result-panel-title">
-                          <ListChecks size={16} />
-                          <strong>Nội dung video</strong>
-                        </div>
-                        <div className="chapter-navigation-list">
-                          {result.chapters.map((chapter, index) => (
+                  <div className="learning-panel-tabs" role="tablist" aria-label="Thông tin bài giảng">
+                    <button
+                      role="tab"
+                      aria-selected={learningTab === "chapters"}
+                      className={learningTab === "chapters" ? "active" : ""}
+                      onClick={() => setLearningTab("chapters")}
+                    >
+                      <ListChecks size={16} /> Nội dung video
+                    </button>
+                    <button
+                      role="tab"
+                      aria-selected={learningTab === "sources"}
+                      className={learningTab === "sources" ? "active" : ""}
+                      onClick={() => setLearningTab("sources")}
+                    >
+                      <BookOpen size={16} /> Nguồn
+                    </button>
+                  </div>
+
+                  <div className="learning-panel-scroll">
+                    {resultLoading ? (
+                      <div className="result-panel-state">
+                        <span className="spinner" /> Đang tải chapter và nguồn...
+                      </div>
+                    ) : resultError && !result ? (
+                      <div className="result-panel-state error">
+                        <AlertTriangle size={17} /> {resultError}
+                      </div>
+                    ) : result && learningTab === "chapters" ? (
+                      <div className="chapter-navigation-list">
+                        {result.chapters.map((chapter, index) => (
+                          <button
+                            key={chapter.chapter_id}
+                            className={
+                              chapter.chapter_id === activeChapter?.chapter_id
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => seekToChapter(chapter)}
+                          >
+                            <span>{index + 1}</span>
+                            <div>
+                              <small>
+                                Chương {index + 1} · {formatTimestamp(chapter.start_seconds)}
+                              </small>
+                              <strong>{chapter.title}</strong>
+                              <em>Trang {chapter.page_numbers.join(", ")}</em>
+                            </div>
+                            <Play size={13} fill="currentColor" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : result && activeChapter ? (
+                      <section className="source-navigation">
+                        <p className="chapter-objective">
+                          {activeChapter.learning_objectives.join(" · ")}
+                        </p>
+                        <div className="source-chip-list">
+                          {[...new Map(
+                            activeChapter.sources.map((source) => [source.page, source]),
+                          ).values()].map((source) => (
                             <button
-                              key={chapter.chapter_id}
-                              className={
-                                chapter.chapter_id === activeChapter?.chapter_id
-                                  ? "active"
-                                  : ""
-                              }
-                              onClick={() => seekToChapter(chapter)}
+                              key={source.page}
+                              className={sourcePage?.page === source.page ? "active" : ""}
+                              onClick={() => void showSourcePage(source.page)}
                             >
-                              <span>{index + 1}</span>
-                              <div>
-                                <strong>{chapter.title}</strong>
-                                <small>
-                                  {formatTimestamp(chapter.start_seconds)} · Trang{" "}
-                                  {chapter.page_numbers.join(", ")}
-                                </small>
-                              </div>
-                              <Play size={13} fill="currentColor" />
+                              Trang {source.page}
+                              <small>{source.element_type}</small>
                             </button>
                           ))}
                         </div>
-                      </aside>
-                      <section className="source-navigation">
-                        <div className="result-panel-title">
-                          <BookOpen size={16} />
-                          <strong>Nguồn của chapter</strong>
-                        </div>
-                        {activeChapter ? (
-                          <>
-                            <p className="chapter-objective">
-                              {activeChapter.learning_objectives.join(" · ")}
-                            </p>
-                            <div className="source-chip-list">
-                              {[...new Map(
-                                activeChapter.sources.map((source) => [
-                                  source.page,
-                                  source,
-                                ]),
-                              ).values()].map((source) => (
-                                <button
-                                  key={source.page}
-                                  className={
-                                    sourcePage?.page === source.page
-                                      ? "active"
-                                      : ""
-                                  }
-                                  onClick={() => void showSourcePage(source.page)}
-                                >
-                                  Trang {source.page}
-                                  <small>{source.element_type}</small>
-                                </button>
-                              ))}
+                        {sourcePage ? (
+                          <div className="source-page-preview">
+                            <img
+                              src={sourcePage.imageUrl}
+                              alt={`Trang nguồn ${sourcePage.page}`}
+                            />
+                            <div>
+                              <strong>Trang {sourcePage.page}</strong>
+                              <p>
+                                {result.pages.find((page) => page.page === sourcePage.page)?.summary}
+                              </p>
                             </div>
-                            {sourcePage ? (
-                              <div className="source-page-preview">
-                                <img
-                                  src={sourcePage.imageUrl}
-                                  alt={`Trang nguồn ${sourcePage.page}`}
-                                />
-                                <div>
-                                  <strong>Trang {sourcePage.page}</strong>
-                                  <p>
-                                    {result.pages.find(
-                                      (page) => page.page === sourcePage.page,
-                                    )?.summary}
-                                  </p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="source-empty">
-                                Chọn một trang để đối chiếu trực tiếp với PDF.
-                              </div>
-                            )}
-                            {resultError && (
-                              <p className="source-error">{resultError}</p>
-                            )}
-                          </>
+                          </div>
                         ) : (
                           <div className="source-empty">
-                            Video chưa có chapter timestamp.
+                            Chọn một trang để đối chiếu trực tiếp với PDF.
                           </div>
                         )}
+                        {resultError && <p className="source-error">{resultError}</p>}
                       </section>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            )}
+                    ) : (
+                      <div className="source-empty">Video chưa có chapter timestamp.</div>
+                    )}
+                  </div>
+                </aside>
+              )}
+            </div>
             {/* Feedback panel removed from the streamlined video viewer.
               <form className="video-feedback-panel" onSubmit={submitFeedback}>
                 <div className="feedback-heading">
@@ -742,14 +892,6 @@ export function VideosPage() {
                 </div>
               </form>
             */}
-            <div className="player-meta">
-              <div><h3>{playing.title}</h3><p>Tạo từ {playing.documentName}</p></div>
-              {playing.videoUrl ? (
-                <a className="primary-button" href={playing.videoUrl}>
-                  <Download size={17} /> Tải video
-                </a>
-              ) : null}
-            </div>
           </div>
         </div>
       )}

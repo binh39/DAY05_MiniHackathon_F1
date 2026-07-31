@@ -9,10 +9,9 @@ import type {
   LecturePlanArtifact,
 } from "../src/core/contracts.js";
 import {
-  chapterWordBudget,
-  estimateSpokenDurationSeconds,
-  tolerantChapterWordBudget,
-} from "../src/modules/module3_script_generator/duration-budget.js";
+  narrationWordBudget,
+  spokenWordsPerMinute,
+} from "../src/core/speech-duration.js";
 import { validateScript } from "../src/modules/module3_script_generator/grounding-validator.js";
 import {
   createScriptCacheKey,
@@ -412,6 +411,47 @@ test("rejects narration longer than the planned chapter duration", () => {
     () => validateScript(build(invalid), document, lecturePlan),
     /vượt duration plan/,
   );
+});
+
+test("estimates a chapter once without cumulative per-scene rounding", () => {
+  const segmented: ChapterScriptDecision = {
+    ...validDecision,
+    narrations: validDecision.narrations.map((narration) => ({
+      ...narration,
+      // Six scenes contain 216 words in total. At the test default of 125 WPM
+      // they represent 103.68 seconds without a fake 3s minimum per scene.
+      text: Array.from({ length: 18 }, () => "nội dung").join(" "),
+    })),
+  };
+  const script = build(segmented);
+  assert.equal(script.chapters[0]?.estimated_duration_seconds, 103.68);
+  assert.doesNotThrow(() => validateScript(script, document, lecturePlan));
+});
+
+test("accepts pre-TTS overrun inside the composer's safe recovery envelope", () => {
+  const recoverable: ChapterScriptDecision = {
+    ...validDecision,
+    narrations: validDecision.narrations.map((narration) => ({
+      ...narration,
+      // 264 words / 125 WPM = 126.72s for a 100s plan. Module 6 can
+      // safely correct this 26.72% estimate without silence or truncation.
+      text: Array.from({ length: 22 }, () => "nội dung").join(" "),
+    })),
+  };
+  const script = build(recoverable);
+  assert.ok(
+    Math.abs(
+      (script.chapters[0]?.estimated_duration_seconds ?? 0) - 126.72,
+    ) < 0.001,
+  );
+  assert.doesNotThrow(() => validateScript(script, document, lecturePlan));
+});
+
+test("calibrates Vietnamese narration budget to measured Cloud TTS speed", () => {
+  assert.equal(spokenWordsPerMinute("vi", 1), 210);
+  assert.equal(spokenWordsPerMinute("vi-VN", 1), 210);
+  assert.equal(narrationWordBudget(60, "vi", 1), 210);
+  assert.equal(narrationWordBudget(60, "vi", 1.5), 315);
 });
 
 test("writes and reads a validated script cache", async (t) => {
