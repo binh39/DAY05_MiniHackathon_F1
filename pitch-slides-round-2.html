@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>VLearn Lecture AI — F1 Speed</title>
+    <style>
+      :root {
+        --navy: #123f72;
+        --blue: #2877d3;
+        --blue-2: #4d9af0;
+        --red: #c72127;
+        --ink: #10243b;
+        --muted: #607188;
+        --line: #dce7f3;
+        --ice: #edf6ff;
+        --paper: #fbfdff;
+        --white: #fff;
+        --green: #1a9b73;
+        --shadow: 0 22px 60px rgba(21, 61, 103, 0.14);
+        --sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      body {
+        font-family: var(--sans);
+        color: var(--ink);
+        background: #e9f1f9;
+      }
+      button,
+      a {
+        font: inherit;
+      }
+
+      .deck {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        isolation: isolate;
+      }
+      .deck::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            circle at 82% 15%,
+            rgba(75, 154, 240, 0.18),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at 8% 88%,
+            rgba(199, 33, 39, 0.08),
+            transparent 25%
+          ),
+          linear-gradient(135deg, #fafdff 0%, #eff6fc 100%);
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: clamp(28px, 4.5vh, 52px) clamp(36px, 6vw, 92px)
+          clamp(24px, 3.7vh, 42px);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(34px) scale(0.992);
+        transition:
+          opacity 0.28s ease,
+          transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+          visibility 0.28s;
+        overflow: hidden;
+      }
+      .slide.active {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        z-index: 2;
+      }
+      .slide.previous {
+        transform: translateX(-34px) scale(0.992);
+      }
+      .slide::after {
+        content: "";
+        position: absolute;
+        width: 32vw;
+        height: 32vw;
+        right: -15vw;
+        top: -18vw;
+        border: clamp(28px, 3vw, 48px) solid rgba(40, 119, 211, 0.055);
+        border-radius: 50%;
+        z-index: -1;
+      }
+
+      .topbar,
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        color: var(--navy);
+        font-weight: 850;
+        letter-spacing: -0.02em;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        display: block;
+      }
+      .brand span {
+        color: var(--red);
+      }
+      .section-label {
+        color: var(--blue);
+        font-size: clamp(10px, 0.8vw, 13px);
+        font-weight: 850;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .content {
+        min-height: 0;
+        display: grid;
+        align-content: center;
+      }
+      .footer {
+        color: var(--muted);
+        font-size: clamp(9px, 0.7vw, 12px);
+      }
+      .page {
+        font-weight: 800;
+        color: var(--navy);
+        letter-spacing: 0.1em;
+      }
+      .progress {
+        position: fixed;
+        z-index: 10;
+        left: 0;
+        bottom: 0;
+        height: 4px;
+        width: 20%;
+        background: linear-gradient(90deg, var(--red), var(--blue));
+        transition: width 0.35s ease;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(54px, 7.4vw, 112px);
+        line-height: 0.91;
+        letter-spacing: -0.065em;
+      }
+      h2 {
+        font-size: clamp(38px, 5.05vw, 76px);
+        line-height: 0.98;
+        letter-spacing: -0.052em;
+      }
+      h3 {
+        font-size: clamp(16px, 1.5vw, 24px);
+        letter-spacing: -0.025em;
+      }
+      .accent {
+        color: var(--blue);
+      }
+      .red {
+        color: var(--red);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .eyebrow {
+        color: var(--blue);
+        font-size: clamp(14px, 1.2vw, 18px);
+        font-weight: 900;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 8px 12px;
+        border: 1px solid #cfe2f7;
+        border-radius: 999px;
+        color: var(--navy);
+        background: rgba(255, 255, 255, 0.72);
+        font-size: clamp(10px, 0.82vw, 13px);
+        font-weight: 800;
+      }
+      .pill::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(26, 155, 115, 0.12);
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: var(--shadow);
+      }
+
+      /* 00 — Cover */
+      .cover .topbar {
+        align-items: flex-start;
+      }
+      .cover-grid {
+        display: grid;
+        grid-template-columns: 1.18fr 0.82fr;
+        align-items: center;
+        gap: clamp(26px, 5vw, 78px);
+      }
+      .cover-copy {
+        display: grid;
+        gap: clamp(18px, 2.8vh, 30px);
+      }
+      .cover-copy .eyebrow {
+        font-size: clamp(18px, 1.45vw, 25px);
+        letter-spacing: 0.13em;
+      }
+      .cover-copy h1 span {
+        display: block;
+        color: var(--blue);
+      }
+      .cover-copy .sub {
+        max-width: 34ch;
+        color: var(--muted);
+        font-size: clamp(17px, 1.65vw, 26px);
+        line-height: 1.4;
+      }
+      .cover-copy .sub strong {
+        color: var(--ink);
+      }
+      .hero-visual {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: min(58vh, 520px);
+      }
+      .orbit {
+        position: absolute;
+        width: min(35vw, 470px);
+        aspect-ratio: 1;
+        border: 1px dashed rgba(40, 119, 211, 0.3);
+        border-radius: 50%;
+        animation: spin 30s linear infinite;
+      }
+      .orbit::before,
+      .orbit::after {
+        content: "";
+        position: absolute;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--red);
+        top: 14%;
+        left: 12%;
+        box-shadow: 0 0 0 7px rgba(199, 33, 39, 0.09);
+      }
+      .orbit::after {
+        background: var(--blue);
+        top: auto;
+        left: auto;
+        bottom: 8%;
+        right: 20%;
+        box-shadow: 0 0 0 7px rgba(40, 119, 211, 0.09);
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .video-card {
+        position: relative;
+        z-index: 1;
+        width: min(30vw, 420px);
+        aspect-ratio: 16/10;
+        padding: 18px;
+        border-radius: 28px;
+        background: linear-gradient(145deg, #184d85, #0d2f55);
+        box-shadow: 0 30px 80px rgba(18, 63, 114, 0.3);
+        transform: rotate(2deg);
+      }
+      .video-screen {
+        position: relative;
+        height: 77%;
+        border-radius: 17px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #edf6ff 0 54%, #d5e9fb 54%);
+      }
+      .video-screen::before {
+        content: "LESSON 06";
+        position: absolute;
+        left: 8%;
+        top: 15%;
+        color: var(--blue);
+        font-size: clamp(8px, 0.7vw, 11px);
+        font-weight: 900;
+        letter-spacing: 0.13em;
+      }
+      .video-screen::after {
+        content: "AI in Action";
+        position: absolute;
+        left: 8%;
+        top: 32%;
+        color: var(--navy);
+        font-size: clamp(22px, 2.5vw, 38px);
+        font-weight: 900;
+        letter-spacing: -0.05em;
+      }
+      .play {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        right: 9%;
+        bottom: 12%;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        color: #fff;
+        background: var(--red);
+        box-shadow: 0 12px 24px rgba(199, 33, 39, 0.3);
+        font-size: 21px;
+        padding-left: 4px;
+      }
+      .video-meta {
+        height: 23%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #fff;
+        font-weight: 750;
+        font-size: clamp(10px, 0.85vw, 13px);
+      }
+      .video-meta strong {
+        color: #9ed0ff;
+      }
+      .float-badge {
+        position: absolute;
+        z-index: 2;
+        right: -4%;
+        top: 12%;
+        padding: 12px 16px;
+        border-radius: 15px;
+        background: #fff;
+        color: var(--navy);
+        box-shadow: var(--shadow);
+        font-weight: 900;
+        transform: rotate(-4deg);
+      }
+      .float-badge b {
+        color: var(--red);
+      }
+
+      /* 01 — Pain */
+      .pain-grid {
+        display: grid;
+        grid-template-columns: 0.95fr 1.05fr;
+        align-items: center;
+        gap: clamp(32px, 5vw, 76px);
+      }
+      .pain-copy {
+        display: grid;
+        gap: clamp(18px, 2.5vh, 28px);
+      }
+      .pain-copy p {
+        max-width: 38ch;
+        color: var(--muted);
+        font-size: clamp(15px, 1.4vw, 22px);
+        line-height: 1.48;
+      }
+      .question {
+        padding-left: 18px;
+        border-left: 4px solid var(--red);
+        color: var(--ink) !important;
+        font-weight: 750;
+      }
+      .pain-scene {
+        position: relative;
+        min-height: min(55vh, 500px);
+        display: grid;
+        place-items: center;
+      }
+      .slide-stack {
+        position: relative;
+        width: min(32vw, 450px);
+        height: min(42vh, 360px);
+      }
+      .paper {
+        position: absolute;
+        inset: 0;
+        padding: clamp(20px, 2vw, 30px);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: var(--shadow);
+      }
+      .paper:nth-child(1) {
+        transform: translate(28px, -23px) rotate(4deg);
+        opacity: 0.44;
+      }
+      .paper:nth-child(2) {
+        transform: translate(14px, -11px) rotate(2deg);
+        opacity: 0.72;
+      }
+      .paper:nth-child(3) {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      .paper-head {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .big-count {
+        align-self: center;
+        color: var(--navy);
+        font-size: clamp(72px, 8vw, 122px);
+        line-height: 0.8;
+        font-weight: 900;
+        letter-spacing: -0.08em;
+      }
+      .big-count small {
+        display: block;
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: clamp(13px, 1.2vw, 18px);
+        letter-spacing: 0;
+      }
+      .text-lines {
+        display: grid;
+        gap: 7px;
+      }
+      .text-lines i {
+        height: 7px;
+        border-radius: 9px;
+        background: #dfe9f4;
+      }
+      .text-lines i:nth-child(2) {
+        width: 83%;
+      }
+      .text-lines i:nth-child(3) {
+        width: 67%;
+      }
+      .refusal {
+        position: absolute;
+        z-index: 4;
+        right: -8%;
+        bottom: -7%;
+        width: min(23vw, 320px);
+        padding: 17px 19px;
+        border: 1px solid #f2c3c5;
+        border-radius: 17px;
+        background: #fff7f7;
+        box-shadow: var(--shadow);
+      }
+      .refusal strong {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--red);
+        font-size: clamp(11px, 0.95vw, 15px);
+      }
+      .refusal p {
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: clamp(9px, 0.78vw, 12px);
+        line-height: 1.35;
+      }
+
+      /* 02 — Evidence */
+      .evidence-wrap {
+        display: grid;
+        gap: clamp(22px, 3vh, 34px);
+      }
+      .evidence-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 34px;
+      }
+      .evidence-head p {
+        max-width: 34ch;
+        color: var(--muted);
+        font-size: clamp(12px, 1.05vw, 16px);
+        line-height: 1.45;
+        text-align: right;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1.08fr 0.92fr 0.92fr 0.92fr;
+        gap: 13px;
+      }
+      .metric {
+        min-height: clamp(190px, 27vh, 255px);
+        padding: clamp(20px, 2.1vw, 29px);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.77);
+      }
+      .metric.primary {
+        color: #fff;
+        background: linear-gradient(145deg, var(--blue), var(--navy));
+        border-color: transparent;
+        box-shadow: 0 24px 60px rgba(18, 63, 114, 0.24);
+      }
+      .metric .source {
+        color: var(--blue);
+        font-size: clamp(12px, 0.95vw, 15px);
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .metric.primary .source {
+        color: #b9dcff;
+      }
+      .metric strong {
+        display: block;
+        font-size: clamp(48px, 5vw, 76px);
+        line-height: 0.88;
+        letter-spacing: -0.065em;
+      }
+      .metric.primary strong {
+        font-size: clamp(62px, 6.2vw, 96px);
+      }
+      .metric p {
+        max-width: 24ch;
+        color: var(--muted);
+        font-size: clamp(11px, 0.92vw, 14px);
+        line-height: 1.42;
+      }
+      .metric.primary p {
+        color: #dcecff;
+      }
+      .problem-line {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(150px, 0.22fr) 1fr;
+        align-items: center;
+        gap: clamp(22px, 2.4vw, 38px);
+        padding: clamp(20px, 2.2vh, 27px) clamp(23px, 2.3vw, 35px);
+        overflow: hidden;
+        border: 1px solid #cfe2f7;
+        border-left: 7px solid var(--red);
+        border-radius: 19px;
+        color: var(--ink);
+        background: linear-gradient(120deg, #ffffff, #edf6ff);
+        box-shadow: 0 18px 40px rgba(18, 63, 114, 0.14);
+      }
+      .problem-line::after {
+        content: "";
+        position: absolute;
+        right: -55px;
+        top: -90px;
+        width: 220px;
+        height: 220px;
+        border: 32px solid rgba(40, 119, 211, 0.055);
+        border-radius: 50%;
+      }
+      .problem-label {
+        position: relative;
+        z-index: 1;
+        color: var(--blue);
+        font-size: clamp(11px, 0.9vw, 14px);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        line-height: 1.45;
+      }
+      .problem-copy {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 13px;
+      }
+      .problem-copy strong {
+        max-width: none;
+        white-space: nowrap;
+        font-size: clamp(17px, 1.55vw, 30px);
+        line-height: 1.18;
+        letter-spacing: -0.025em;
+      }
+      .problem-copy strong em {
+        color: var(--blue);
+        font-style: normal;
+      }
+      .problem-features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .problem-features span {
+        padding: 6px 9px;
+        border: 1px solid #cfe2f7;
+        border-radius: 8px;
+        color: var(--navy);
+        background: rgba(255, 255, 255, 0.86);
+        font-size: clamp(9px, 0.74vw, 12px);
+        font-weight: 800;
+      }
+
+      /* 03 — Solution */
+      .solution-grid {
+        display: grid;
+        grid-template-columns: 0.82fr 1.18fr;
+        align-items: center;
+        gap: clamp(28px, 4.5vw, 68px);
+      }
+      .solution-copy {
+        display: grid;
+        gap: clamp(12px, 1.8vh, 20px);
+      }
+      .solution-copy h2 {
+        font-size: clamp(28px, 3.5vw, 50px);
+        line-height: 1.05;
+      }
+      .solution-copy p.desc {
+        max-width: 38ch;
+        color: var(--muted);
+        font-size: clamp(13px, 1.1vw, 17px);
+        line-height: 1.45;
+      }
+
+      .cards-stack {
+        display: grid;
+        gap: 10px;
+      }
+      .info-card {
+        padding: 13px 16px;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--blue);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.82);
+      }
+      .info-card.green {
+        border-left-color: var(--green);
+      }
+      .info-card strong {
+        display: block;
+        color: var(--navy);
+        font-size: clamp(13px, 1.05vw, 15px);
+        font-weight: 800;
+      }
+      .info-card p {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: clamp(12px, 1vw, 14px);
+        line-height: 1.42;
+      }
+      .trust-card {
+        padding: 13px 16px;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.82);
+      }
+      .trust-card strong {
+        display: block;
+        color: var(--navy);
+        font-size: clamp(13px, 1.05vw, 15px);
+        font-weight: 800;
+      }
+      .trust-card p {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: clamp(12px, 1vw, 14px);
+        line-height: 1.42;
+      }
+      .workflow {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: clamp(20px, 2.3vw, 31px);
+      }
+      .step {
+        position: relative;
+        min-height: clamp(145px, 19vh, 185px);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+      }
+      .step.review {
+        border: 2px solid var(--blue);
+        background: var(--ice);
+        box-shadow: 0 16px 36px rgba(40, 119, 211, 0.13);
+      }
+      .step-no {
+        display: grid;
+        place-items: center;
+        width: 31px;
+        height: 31px;
+        border-radius: 10px;
+        color: var(--blue);
+        background: #e6f2ff;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .review .step-no {
+        color: #fff;
+        background: var(--blue);
+      }
+      .step h3 {
+        margin-top: 18px;
+      }
+      .step p {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: clamp(10px, 0.82vw, 13px);
+        line-height: 1.4;
+      }
+      .step-tag {
+        width: fit-content;
+        margin-top: 12px;
+        padding: 5px 8px;
+        border-radius: 7px;
+        color: var(--navy);
+        background: #edf3f9;
+        font-size: clamp(8px, 0.65vw, 10px);
+        font-weight: 850;
+      }
+      .review .step-tag {
+        color: #fff;
+        background: var(--blue);
+      }
+      .demo-button {
+        position: absolute;
+        z-index: 3;
+        left: 50%;
+        bottom: -24px;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-width: 210px;
+        min-height: 49px;
+        padding: 0 21px;
+        border: 0;
+        border-radius: 999px;
+        color: #fff;
+        text-decoration: none;
+        background: linear-gradient(135deg, var(--red), #df3940);
+        box-shadow: 0 16px 34px rgba(199, 33, 39, 0.28);
+        font-weight: 900;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          filter 0.18s ease;
+      }
+      .demo-button:hover {
+        transform: translateX(-50%) translateY(-2px);
+        filter: brightness(1.05);
+      }
+
+      /* 04 — Close */
+      .closing .content {
+        place-items: center;
+        text-align: center;
+      }
+      .closing-wrap {
+        display: grid;
+        justify-items: center;
+        gap: clamp(20px, 3vh, 32px);
+      }
+      .transformation {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(20px, 3vw, 46px);
+      }
+      .transform-number {
+        min-width: 3ch;
+        font-size: clamp(88px, 12vw, 176px);
+        line-height: 0.8;
+        letter-spacing: -0.085em;
+        font-weight: 950;
+      }
+      .transform-number.from {
+        color: #b4c0ce;
+        text-decoration: line-through;
+        text-decoration-thickness: 7px;
+        text-decoration-color: var(--red);
+      }
+      .transform-number.to {
+        color: var(--blue);
+      }
+      .transform-number small {
+        display: block;
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: clamp(13px, 1.2vw, 18px);
+        letter-spacing: 0.02em;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .arrow {
+        color: var(--red);
+        font-size: clamp(45px, 5vw, 76px);
+        font-weight: 300;
+      }
+      .closing h2 {
+        max-width: 19ch;
+        font-size: clamp(30px, 3.5vw, 53px);
+        line-height: 1.05;
+      }
+      .closing h2 em {
+        color: var(--green);
+        font-style: normal;
+      }
+
+
+      .controls {
+        position: fixed;
+        z-index: 20;
+        right: 18px;
+        bottom: 16px;
+        display: flex;
+        gap: 7px;
+        opacity: 0.2;
+        transition: opacity 0.2s ease;
+      }
+      .controls:hover {
+        opacity: 1;
+      }
+      .controls button {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        color: var(--navy);
+        background: rgba(255, 255, 255, 0.88);
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(18, 63, 114, 0.1);
+      }
+      .timer {
+        position: fixed;
+        z-index: 30;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        padding: 8px 13px;
+        border-radius: 999px;
+        color: #fff;
+        background: rgba(16, 36, 59, 0.92);
+        font: 800 13px/1 var(--sans);
+        letter-spacing: 0.08em;
+      }
+      .timer.show {
+        display: block;
+      }
+      .notes {
+        position: fixed;
+        z-index: 25;
+        left: 22px;
+        right: 22px;
+        bottom: 22px;
+        display: none;
+        max-height: 30vh;
+        overflow: auto;
+        padding: 18px 21px;
+        border-radius: 16px;
+        color: #eaf3fc;
+        background: rgba(11, 29, 49, 0.94);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .notes.show {
+        display: block;
+      }
+      .notes strong {
+        color: #8bc7ff;
+      }
+
+      @media (max-width: 850px), (max-aspect-ratio: 4/3) {
+        .slide {
+          padding-inline: 30px;
+        }
+        .cover-grid,
+        .pain-grid,
+        .solution-grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 28px;
+        }
+        .metrics {
+          gap: 8px;
+        }
+        .metric {
+          padding: 16px;
+        }
+        .footer span:first-child {
+          max-width: 80%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck" aria-live="polite">
+      <section
+        class="slide cover active"
+        data-note="Em xin kính chào Ban Giám Khảo. Chúng em là đội F1 Speed. Hôm nay, chúng em xin giới thiệu VLearn Lecture AI — giải pháp giúp học viên nắm bắt nội dung cốt lõi của một buổi học trong chưa đầy 10 phút."
+      >
+        <header class="topbar">
+          <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 613 613" aria-label="VLearn">
+              <polygon fill="#c72127" points="126,115 213.5,202.5 126,290" />
+              <polygon
+                fill="#134d8b"
+                points="486,113 486,296 306,476 133.5,303.5 225,212 306,293 387,212"
+              />
+            </svg>
+            VLearn <span>Lecture AI</span>
+          </div>
+        </header>
+        <div class="content cover-grid">
+          <div class="cover-copy">
+            <div class="eyebrow">Đội F1 Speed</div>
+            <h1>VLearn <span>Lecture AI.</span></h1>
+            <p class="sub">
+              Nắm bắt nội dung cốt lõi của một buổi học trong
+              <strong>chưa đầy 10 phút.</strong>
+            </p>
+          </div>
+          <div class="hero-visual" aria-hidden="true">
+            <div class="orbit"></div>
+            <div class="video-card">
+              <div class="video-screen"><div class="play">▶</div></div>
+              <div class="video-meta">
+                <span>8 chương nội dung</span><strong>08:42</strong>
+              </div>
+            </div>
+            <div class="float-badge"><b>80</b> slides → <b>&lt;10'</b></div>
+          </div>
+        </div>
+        <footer class="footer">
+          <span class="page">00 / 04</span>
+        </footer>
+      </section>
+
+      <section
+        class="slide"
+        data-note="Sau một ngày học tập dài từ sáng đến đêm, rất ít học viên còn đủ thời gian ôn lại một file bài giảng 60 đến 80 slide, phần lớn chứa rất nhiều chữ. Bản thân em từng yêu cầu AI Tutor tóm tắt toàn bộ bài giảng, nhưng hệ thống không thể thực hiện. Từ đó, nhóm đặt câu hỏi: Liệu học viên có thể nắm lại nội dung cốt lõi của cả buổi học trong dưới 10 phút hay không?"
+      >
+        <header class="topbar">
+          <div class="section-label">01 · Nỗi đau của học viên</div>
+          <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 613 613">
+              <polygon fill="#c72127" points="126,115 213.5,202.5 126,290" />
+              <polygon
+                fill="#134d8b"
+                points="486,113 486,296 306,476 133.5,303.5 225,212 306,293 387,212"
+              />
+            </svg>
+          </div>
+        </header>
+        <div class="content pain-grid">
+          <div class="pain-copy">
+            <div class="eyebrow">Một ngày học đã đủ dài</div>
+            <h2>
+              Ai còn thời gian đọc lại <span class="red">80 slides?</span>
+            </h2>
+            <p>
+              Slide nhiều chữ, nội dung rời rạc, khó tái hiện lại mạch giảng sau
+              một ngày học dài.
+            </p>
+            <p class="question">
+              Liệu người học có thể nắm lại cả buổi học trong dưới 10 phút?
+            </p>
+          </div>
+          <div
+            class="pain-scene"
+            aria-label="File bài giảng dài và AI Tutor từ chối tóm tắt"
+          >
+            <div class="slide-stack">
+              <div class="paper"></div>
+              <div class="paper"></div>
+              <div class="paper">
+                <div class="paper-head">
+                  <span>LECTURE_06.PDF</span><span>1 / 80</span>
+                </div>
+                <div class="big-count">
+                  60–80<small>slides mỗi buổi học</small>
+                </div>
+                <div class="text-lines"><i></i><i></i><i></i></div>
+              </div>
+              <div class="refusal">
+                <strong>✕ AI Tutor không thể thực hiện</strong>
+                <p>“Hãy tóm tắt toàn bộ nội dung bài giảng.”</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="footer">
+          <span class="page">01 / 04</span>
+        </footer>
+      </section>
+
+      <section
+        class="slide"
+        data-note="Đây không chỉ là vấn đề của riêng nhóm. Trong khảo sát với 25 học viên, 72% cho biết việc phải lướt qua quá nhiều slide gây tốn thời gian, đồng thời các slide rời rạc khiến họ khó tái hiện mạch giảng. Nhóm phân tích hơn 1.200 hội thoại trên VLearn và ghi nhận khoảng 140 yêu cầu tóm tắt hoặc tổng hợp toàn bộ bài học; 49 lượt bị AI Tutor từ chối trực tiếp. Vì vậy, bài toán là biến một file slide dài thành video ôn tập dưới 10 phút, có hình ảnh, lời thuyết minh và liên kết đúng trang nguồn."
+      >
+        <header class="topbar">
+          <div class="section-label">02 · Dữ liệu xác nhận</div>
+          <div class="pill">Pain đã được kiểm chứng</div>
+        </header>
+        <div class="content evidence-wrap">
+          <div class="evidence-head">
+            <h2>
+              Không chỉ là cảm nhận<br /><span class="accent"
+                >của riêng nhóm.</span
+              >
+            </h2>
+            <p>
+              Khảo sát người học kết hợp với dữ liệu hành vi thật trên VLearn.
+            </p>
+          </div>
+          <div class="metrics">
+            <article class="metric primary">
+              <span class="source">Khảo sát 25 học viên</span
+              ><strong>72%</strong>
+              <p>cho rằng phải lướt quá nhiều slide gây tốn thời gian.</p>
+            </article>
+            <article class="metric">
+              <span class="source">Dữ liệu VLearn</span><strong>1.200+</strong>
+              <p>hội thoại được nhóm phân tích.</p>
+            </article>
+            <article class="metric">
+              <span class="source">Nhu cầu thật</span><strong>≈140</strong>
+              <p>lượt yêu cầu tóm tắt hoặc tổng hợp cả bài.</p>
+            </article>
+            <article class="metric">
+              <span class="source">Khoảng trống</span
+              ><strong class="red">49</strong>
+              <p>lượt bị AI Tutor từ chối trực tiếp.</p>
+            </article>
+          </div>
+          <div class="problem-line">
+            <span class="problem-label">Bài toán nhóm lựa chọn giải quyết</span>
+            <div class="problem-copy">
+              <strong
+                >Biến một file slide dài thành
+                <em>video ôn tập dưới 10 phút</em></strong
+              >
+              <div class="problem-features">
+                <span>✓ Hình ảnh minh họa</span>
+                <span>✓ Lời thuyết minh</span>
+                <span>✓ Liên kết đúng trang nguồn</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="footer">
+          <span class="page">02 / 04</span>
+        </footer>
+      </section>
+
+      <section
+        class="slide"
+        data-note="Để giải quyết bài toán, nhóm phát triển VLearn Lecture AI. Quy trình gồm bốn bước: tải PDF; AI chọn kiến thức trọng tâm và tạo outline kèm nguồn từng trang; học viên kiểm tra, chỉnh sửa; sau đó hệ thống mới tạo video có hình ảnh, lời thuyết minh và chapter rõ ràng. Điểm khác biệt là AI không tạo video ngay. Người học duyệt outline trước, giúp hạn chế thông tin sai và bảo đảm video bám sát bài giảng. Sản phẩm đã deploy public và nhận phản hồi khá tích cực. Sau đây nhóm xin demo trực tiếp sản phẩm."
+      >
+        <header class="topbar">
+          <div class="section-label">03 · Giải pháp</div>
+          <div class="brand">VLearn <span>Lecture AI</span></div>
+        </header>
+        <div class="content solution-grid">
+          <div class="solution-copy">
+            <div class="eyebrow">Giải pháp VLearn Lecture AI</div>
+            <h2>
+              Biến file slide dài<br /><span class="accent"
+                >thành video ôn tập &lt;10 phút.</span
+              >
+            </h2>
+            <p class="desc">
+              Tối ưu thời gian ôn tập cho học viên với hình ảnh minh họa, lời thuyết minh và trỏ đúng slide gốc.
+            </p>
+            <div class="cards-stack">
+              <div class="info-card">
+                <strong>Đã Deploy Public &amp; Thử nghiệm</strong>
+                <p>Sản phẩm đã đưa cho người dùng dùng thử và nhận được phản hồi khá tích cực.</p>
+              </div>
+              <div class="trust-card">
+                <strong>Human-in-the-loop (Duyệt Outline)</strong>
+                <p>Duyệt outline trước khi render — sửa một ý ở outline rẻ hơn sửa cả video.</p>
+              </div>
+            </div>
+          </div>
+          <div class="workflow panel">
+            <article class="step">
+              <div>
+                <span class="step-no">01</span>
+                <h3>Tải PDF</h3>
+                <p>Đưa bài giảng vào hệ thống.</p>
+              </div>
+              <span class="step-tag">60–80 slides</span>
+            </article>
+            <article class="step">
+              <div>
+                <span class="step-no">02</span>
+                <h3>AI tạo outline</h3>
+                <p>Chọn kiến thức trọng tâm, gắn đúng trang nguồn.</p>
+              </div>
+              <span class="step-tag">Grounded content</span>
+            </article>
+            <article class="step review">
+              <div>
+                <span class="step-no">03</span>
+                <h3>Học viên kiểm duyệt</h3>
+                <p>Sửa nội dung, thứ tự và mức độ chi tiết.</p>
+              </div>
+              <span class="step-tag">Điểm khác biệt</span>
+            </article>
+            <article class="step">
+              <div>
+                <span class="step-no">04</span>
+                <h3>Tạo video</h3>
+                <p>Slide minh họa, lời thoại và chapter rõ ràng.</p>
+              </div>
+              <span class="step-tag">Dưới 10 phút</span>
+            </article>
+            <a
+              class="demo-button"
+              href="https://project-5d300c02-d165-4037-b6f.web.app"
+              target="_blank"
+              rel="noopener"
+              >▶ MỞ LIVE DEMO</a
+            >
+          </div>
+        </div>
+        <footer class="footer">
+          <span class="page">03 / 04</span>
+        </footer>
+      </section>
+
+      <section
+        class="slide closing"
+        data-note="Từ 80 slide xuống dưới 10 phút, nhưng vẫn bám sát và kiểm chứng được từ bài giảng gốc. Đó là cách VLearn Lecture AI giúp học viên ôn tập nhanh hơn và hiệu quả hơn. Nhóm chúng em xin chân thành cảm ơn Ban Giám Khảo đã lắng nghe!"
+      >
+        <header class="topbar">
+          <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 613 613">
+              <polygon fill="#c72127" points="126,115 213.5,202.5 126,290" />
+              <polygon
+                fill="#134d8b"
+                points="486,113 486,296 306,476 133.5,303.5 225,212 306,293 387,212"
+              /></svg
+            >VLearn <span>Lecture AI</span>
+          </div>
+          <div class="section-label">F1 Speed</div>
+        </header>
+        <div class="content">
+          <div class="closing-wrap">
+            <div class="transformation">
+              <div class="transform-number from">80<small>SLIDES</small></div>
+              <div class="arrow">→</div>
+              <div class="transform-number to">&lt;10<small>PHÚT</small></div>
+            </div>
+            <h2>Ôn tập nhanh hơn.<br /><em>Vẫn bám sát nguồn.</em></h2>
+          </div>
+        </div>
+        <footer class="footer">
+          <span class="page">04 / 04</span>
+        </footer>
+      </section>
+
+      <div class="progress" aria-hidden="true"></div>
+      <div class="timer" aria-label="Đồng hồ thuyết trình">00:00</div>
+      <aside class="notes" aria-label="Ghi chú người thuyết trình"></aside>
+      <nav class="controls" aria-label="Điều khiển slide">
+        <button data-action="prev" title="Slide trước">←</button
+        ><button data-action="next" title="Slide sau">→</button>
+      </nav>
+    </main>
+
+    <script>
+      (() => {
+        const slides = [...document.querySelectorAll(".slide")];
+        const progress = document.querySelector(".progress");
+        const notes = document.querySelector(".notes");
+        const timer = document.querySelector(".timer");
+        const demoUrl = "https://project-5d300c02-d165-4037-b6f.web.app";
+        let current = Math.max(
+          0,
+          Math.min(slides.length - 1, Number(location.hash.slice(1)) || 0),
+        );
+        let timerStart = null;
+        let timerInterval = null;
+
+        function render(next = current) {
+          current = Math.max(0, Math.min(slides.length - 1, next));
+          slides.forEach((slide, index) => {
+            slide.classList.toggle("active", index === current);
+            slide.classList.toggle("previous", index < current);
+          });
+          progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+          notes.innerHTML = `<strong>Speaker notes · Slide ${current}</strong><br>${slides[current].dataset.note || ""}`;
+          history.replaceState(null, "", `#${current}`);
+        }
+
+        function move(delta) {
+          render(current + delta);
+        }
+        function toggleFullscreen() {
+          if (!document.fullscreenElement)
+            document.documentElement.requestFullscreen?.();
+          else document.exitFullscreen?.();
+        }
+        function toggleTimer() {
+          timer.classList.toggle("show");
+          if (!timer.classList.contains("show")) return;
+          if (timerStart === null) timerStart = Date.now();
+          clearInterval(timerInterval);
+          const tick = () => {
+            const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+            timer.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+          };
+          tick();
+          timerInterval = setInterval(tick, 1000);
+        }
+
+        document.addEventListener("keydown", (event) => {
+          if (["ArrowRight", "PageDown", " ", "Enter"].includes(event.key)) {
+            event.preventDefault();
+            move(1);
+          }
+          if (["ArrowLeft", "PageUp", "Backspace"].includes(event.key)) {
+            event.preventDefault();
+            move(-1);
+          }
+          if (event.key === "Home") render(0);
+          if (event.key === "End") render(slides.length - 1);
+          if (event.key.toLowerCase() === "f") toggleFullscreen();
+          if (event.key.toLowerCase() === "n") notes.classList.toggle("show");
+          if (event.key.toLowerCase() === "t") toggleTimer();
+          if (event.key.toLowerCase() === "d")
+            window.open(demoUrl, "_blank", "noopener");
+        });
+        document.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action]")?.dataset.action;
+          if (action === "next") move(1);
+          if (action === "prev") move(-1);
+        });
+        let touchStart = 0;
+        document.addEventListener(
+          "touchstart",
+          (e) => (touchStart = e.changedTouches[0].clientX),
+          { passive: true },
+        );
+        document.addEventListener(
+          "touchend",
+          (e) => {
+            const d = e.changedTouches[0].clientX - touchStart;
+            if (Math.abs(d) > 60) move(d < 0 ? 1 : -1);
+          },
+          { passive: true },
+        );
+        render(current);
+      })();
+    </script>
+  </body>
+</html>
