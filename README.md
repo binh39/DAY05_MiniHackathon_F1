@@ -1,96 +1,111 @@
-# Mini Hackathon AI — Batch 03
+# VLearn — Video ôn tập có căn cứ từ PDF bài giảng (Nhóm F1 · Zone D305)
 
-**SPEC → Prototype → Demo.** Đây không phải cuộc thi code — đây là cuộc thi **tư duy sản phẩm AI**.
+> **SPEC → Prototype → Demo.** Nền tảng học tập thích ứng VLearn — Tự động tạo video ôn tập dưới 10 phút kèm trích dẫn trang slide gốc, checkpoint duyệt outline và minh họa trực quan từ PDF bài giảng.
 
-- Thời lượng: **1,5 ngày** (một ngày build + một buổi demo)
-- Nhóm: **4-5 người** · zone tối đa 5 nhóm · thi theo lớp
+---
 
-## Bắt đầu từ đâu?
+## Thành viên nhóm & Phân công trách nhiệm
 
-1. Đọc **`01-de-bai.md`** để chọn hướng và hiểu tiêu chí.
-2. Mở **`02-guide.md`** — hướng dẫn từng giai đoạn, đứng ở đâu đọc mục đó.
-3. Viết spec theo **`03-template-ai-spec.md`** — deliverable trung tâm của cả sự kiện.
-4. Đọc **`04-rubric.md`** ngay từ đầu — biết trước bài được chấm theo tiêu chí nào.
+| Mã học viên     | Họ và tên              | Vai trò              | Phụ trách chính / Artifacts                                                                  |
+| --------------- | ---------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| **2A202601901** | **Đồng Đại Huy**       | Spec & Evidence      | `spec.md`, `evidence/mining-log.md`, khảo sát & JTBD                                         |
+| **2A202601597** | **Nguyễn Quang Tường** | AI / Eval Engineer   | `eval/golden-set-v1.md`, `eval/run-01-2026-07-30.md`, failure analysis & prompt tuning       |
+| **2A202601091** | **Nguyễn Đình Bình**   | Backend Lead         | `codebase/backend/`, LLM Module 1–4, TTS & FFmpeg pipeline, Zod contract & validator         |
+| **2A202601979** | **Phạm Đình Minh**     | Frontend / Demo Lead | `codebase/frontend/`, Remotion visual player, outline editor, source trace UI, dry run       |
+| **2A202601253** | **Phạm Đức Trung**     | Product / Validation | `validation/feedback-log.md`, User testing (5 willing users), feedback synthesis & changelog |
 
-| File / thư mục | Nội dung |
-|---|---|
-| `01-de-bai.md` | Đề bài 3 hướng · 5 tiêu chí nghiệm thu · ràng buộc chung |
-| `02-guide.md` | Hướng dẫn 5 giai đoạn: khám phá → spec → build → đo & validate → demo |
-| `03-template-ai-spec.md` | Template AI Spec (nộp 23:59 ngày 1) |
-| `04-rubric.md` | Rubric 100 điểm (25 nộp checkpoint + 75 chấm bài) + checklist xác minh 6 mốc |
-| `data/` | Dữ liệu thật đã ẩn danh: chatlog VLearn tutor + 6 transcript bài giảng bản sạch — dùng để tìm bằng chứng và xây golden set |
-| `tham-khao/` | JTBD Playbook (PDF) + worksheet JTBD đầy đủ — đọc khi muốn đào sâu |
+---
 
-## Lịch — 6 mốc
+## Bài toán & Lát cắt sản phẩm
 
-| Mốc | Khoá 3 | Khoá 4 |
-|---|---|---|
-| Khai mạc + phát đề | 09:00 ngày 1 | 14:00 ngày 1 |
-| CP1 · Chốt Canvas | 10:00 ngày 1 | 15:00 ngày 1 |
-| CP2 · Show được thứ bấm được | 12:00 ngày 1 | 17:00 ngày 1 |
-| CP3 · AI chạy thật + đo lượt đầu | 16:00 ngày 1 | 10:30 ngày 2 |
-| CP4 · Chốt tiến độ — spec nộp hạn cứng **23:59 ngày 1** | 17:30 ngày 1 | 12:00 ngày 2 |
-| CP5 · Xác minh + validation + dry run | 09:00 ngày 2 | 14:00 ngày 2 |
-| CP6 · Demo | 10:00 ngày 2 | 15:00 ngày 2 |
+- **Hướng chọn:** **Hướng A — VLearn** (Tính năng mới trên VLearn).
+- **Problem Statement:** Học viên muốn xem lại kiến thức sau buổi học trong thời gian ngắn (10–20 phút) nhưng phải tự lướt và ghép mạch từ 40–80 trang slide; nhiều slide chỉ có từ khóa hoặc hình ảnh, khiến họ tốn thời gian mà vẫn khó nối lại lời giảng và nắm được bức tranh tổng thể của buổi học.
+- **Lát cắt MỘT CÂU:**
+  > _Một học viên muốn ôn lại một buổi học từ một PDF hợp lệ dài 40–80 trang; hệ thống quyết định ý nào đủ quan trọng và đủ căn cứ để đưa vào video, ý nào phải cảnh báo hoặc dẫn về nguồn; để người học nhận một video ôn tập tiếng Việt dưới 10 phút có chapter, slide minh họa và liên kết về đúng trang gốc._
 
-Mỗi mốc cần show gì và được xác minh thế nào: xem bảng trong `04-rubric.md`.
+---
 
-## Nộp bài
+## 🛠️ Mức độ Prototype (Working Prototype)
 
-Một repo nhóm, cấu trúc như sau. Spec chốt lúc 23:59 ngày 1; bản hoàn chỉnh trước CP6.
+- **Loại prototype:** **Working Prototype** (xem tại `codebase/`).
+- **AI chạy thật ở quyết định trung tâm:** Gọi Vertex AI (Gemini 1.5 Pro / Flash) phân tích PDF, trích xuất grounding source ID, tạo outline chapter, thẩm định câu claim có căn cứ, sinh kịch bản narration & visual layout.
+- **Pipeline xử lý end-to-end:**
+  1. Upload PDF & Phân tích OCR / Bounding box (`Module 1 & 2`)
+  2. Dừng tại checkpoint **AWAITING_APPROVAL** cho học viên duyệt/sửa Outline.
+  3. Resume pipeline (`Module 3-6`): Synth audio qua Google Cloud TTS → Render Remotion Visual → Compose MP4/SRT bằng FFmpeg.
+  4. Trình chiếu trên Web Player với tính năng click Chapter nhảy tới trang PDF gốc.
 
+---
+
+## 📂 Cấu trúc Repository
+
+```text
+DAY05_MiniHackathon_F1/
+├── README.md                 ← File này (Thông tin nhóm, phân công, HDSD)
+├── spec.md                   ← AI Spec chi tiết (§1-§9 theo 03-template-ai-spec.md)
+├── demo-slides.html          ← Bản slide trình bày demo 6 trang (Render được ra PDF)
+├── codebase/                 ← Source code sản phẩm
+│   ├── backend/              ← Express.js / TypeScript pipeline backend
+│   └── frontend/             ← React / Vite / Tailwind UI frontend
+├── eval/                     ← Bộ kiểm thử tự động
+│   ├── golden-set-v1.md      ← Golden set 20 test cases (phủ 4 lớp chỗ khó)
+│   └── run-01-2026-07-30.md  ← Bảng kết quả chạy baseline (85% pass rate)
+├── evidence/                 ← Bằng chứng nghiên cứu & mining
+│   └── mining-log.md         ← Mining log 2.522 message chatlog VLearn tutor
+├── validation/               ← Kiểm thử với người dùng thật
+│   └── feedback-log.md       ← Feedback log từ 5 người dùng ngoài nhóm (CP5)
+├── reflection/               ← Đánh giá cá nhân của từng thành viên
+│   ├── dong-dai-huy.md
+│   ├── nguyen-quang-tuong.md
+│   ├── nguyen-dinh-binh.md
+│   ├── pham-dinh-minh.md
+│   └── pham-duc-trung.md
+└── data/                     ← Data pack được BTC cấp (ẩn danh)
 ```
-repo/
-├── README.md          ← thành viên (mã HV + tên) + phân công có tên từng phần
-├── spec.md            ← AI Spec theo 03-template-ai-spec.md
-├── demo-slides.pdf    ← slide 6 trang theo 02-guide.md §5.1
-├── codebase/          ← prototype (ghi rõ phần nào mock)
-├── eval/              ← golden set + bảng kết quả các lượt chạy
-├── validation/        ← feedback log từ vòng user test
-└── reflection/        ← mỗi người 1 file
+
+---
+
+## 🚀 Hướng dẫn Chạy Sản phẩm (Local Setup)
+
+### 1. Yêu cầu môi trường
+
+- Node.js >= 18.x
+- npm >= 9.x
+- FFmpeg đã cài trong PATH hệ thống (phục vụ render video)
+
+### 2. Chạy Backend (`codebase/backend`)
+
+```bash
+cd codebase/backend
+npm install
+cp .env.example .env   # Cấu hình GEMINI_API_KEY hoặc GCP credentials
+npm run dev
 ```
 
-## Chấm điểm
+- Backend lắng nghe tại `http://localhost:3000`.
+- API typecheck & unit test: `npm run test`
 
-Tổng **100 điểm = 25 điểm nộp checkpoint + 75 điểm chấm bài nộp**. Chi tiết từng ý điểm: `04-rubric.md`.
+### 3. Chạy Frontend (`codebase/frontend`)
 
-**25 điểm nộp — mỗi checkpoint 5 điểm (CP1-CP5):** nộp đúng hạn → 5 điểm · nộp muộn → 0 điểm cho mốc đó. Mỗi thành viên nộp riêng, cả nhóm dùng chung một link repo.
+```bash
+cd codebase/frontend
+npm install
+cp .env.example .env
+npm run dev
+```
 
-**75 điểm chấm — trên artifact trong repo, mỗi con điểm trỏ về một file:**
+- Truy cập ứng dụng tại `http://localhost:5173`.
 
-| Khối | Điểm | Chấm trên file nào |
-|---|---|---|
-| R1 · Bằng chứng & impact | 15 | `spec.md` §1-§2 + log khảo sát/mining |
-| R2 · Lát cắt & thiết kế | 15 | `spec.md` §4 |
-| R3 · Chỗ khó & kịch bản rủi ro | 11 | `spec.md` §5-§6 |
-| R4 · Kiểm thử | 15 | `spec.md` §7 + `eval/` |
-| R5 · Prototype chạy được | 8 | `codebase/` + demo |
-| R6 · Validation với user | 8 | `validation/` |
-| R7 · Quy trình & repo | 3 | cấu trúc repo |
+---
 
-Ba điều nên biết trước khi làm:
+## 🧪 Kiểm thử & Quality Bar (`eval/`)
 
-- Điểm dựa trên **chuỗi quyết định và bằng chứng**, không dựa trên mức độ hoành tráng của sản phẩm.
-- Kết quả đo **ghi nhận trung thực** — kể cả khi không đạt mục tiêu nhóm tự đặt — vẫn được tính đủ điểm. Số liệu bị chỉnh sửa hoặc che giấu sẽ không được tính.
-- Reflection cá nhân chấm riêng theo rubric của khoá. Điểm vòng demo, chấm chéo trong zone và thưởng thêm (nếu có) theo thể lệ công bố lúc khai mạc.
+- **Quality Bar đã chốt:** Đạt khi ≥90% (18/20) case pass, mọi case P0 pass, 0 grounded claim thiếu/sai `source_id`, 0 video COMPLETED có scene `FAILED`.
+- **Golden set 20 cases:** Nằm tại `eval/golden-set-v1.md` (gồm 8 case thường, 8 case khó phủ 4 lớp chỗ khó R1-R12, 4 case hiếm).
+- **Kết quả Lượt 1 (`eval/run-01-2026-07-30.md`):** 17/20 PASS (85%), 1 FAIL (`G15` lệch duration estimate), 2 NOT RUN (`G17`, `G18`). Phân tích nguyên nhân & kế hoạch khắc phục đã được nêu chi tiết tại `spec.md` §7.
 
-## Luật chung
+---
 
-1. Prototype có 3 mức **Sketch / Mock / Working** — mức nào cũng bắt buộc **≥1 lời gọi AI chạy thật**.
-2. **Vibe-coding rule:** dùng AI để build thoải mái, nhưng không giải thích được phần có tên mình thì phần đó 0 điểm (kiểm tra tại CP5).
-3. **Quality bar** chốt tại spec.md 23:59 ngày 1 và giữ nguyên sau đó.
-4. Chỉ dùng dữ liệu trong `data/` hoặc dữ liệu giả tự sinh — không dùng dữ liệu thật của người thật. Không commit API key.
-5. Tuân thủ **quy định bảo mật dữ liệu** bên dưới — đây là điều kiện để được cấp data.
+## 🔒 Bảo mật dữ liệu
 
-## Bảo mật dữ liệu được cung cấp
-
-Dữ liệu trong `data/` là dữ liệu thật của khoá học (đã ẩn danh), cấp riêng cho hackathon này. Khi nhận data, nhóm cam kết:
-
-1. **Chỉ dùng trong phạm vi hackathon** — cho việc tìm bằng chứng, xây golden set và build prototype. Không dùng cho mục đích khác.
-2. **Không chia sẻ ra ngoài khoá học** — không đăng lên mạng xã hội, không gửi cho người ngoài, không đưa vào bất kỳ dataset hay repo công khai nào.
-3. **Không commit data pack vào repo nộp bài** — repo nhóm chỉ chứa trích dẫn ngắn để minh hoạ (vài dòng); golden set trích từ data ghi rõ mã đoạn/mã hội thoại thay vì dán nguyên văn dài.
-4. **Cẩn trọng khi đưa data vào công cụ ngoài** — chỉ đưa phần tối thiểu cần cho việc đang làm; lưu ý API/công cụ free tier có thể dùng dữ liệu để huấn luyện (xem `02-guide.md` §3.4).
-5. **Không cố suy ngược danh tính** từ dữ liệu đã ẩn danh ([học viên], mã U/C/T/M).
-6. Sau sự kiện, **xoá các bản sao data pack** khỏi máy cá nhân và các công cụ đã upload nếu ban tổ chức yêu cầu.
-
-Vi phạm được xử lý theo quy định của khoá và có thể ảnh hưởng trực tiếp đến điểm của nhóm.
+Dữ liệu trong `data/` tuân thủ quy định bảo mật của khóa học: chỉ dùng cho hackathon, không chia sẻ ra ngoài, không commit API key hay data pack nguyên văn lên repo public.
