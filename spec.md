@@ -1,5 +1,7 @@
 # AI SPEC — Video ôn tập có căn cứ từ PDF bài giảng · Nhóm F1 · Zone D305
 
+**Danh sách thành viên:** Đồng Đại Huy (2A202601901), Nguyễn Quang Tường (2A202601597), Nguyễn Đình Bình (2A202601091), Phạm Đình Minh (2A202601979), Phạm Đức Trung (2A202601253)
+
 Hướng: [x] A — VLearn [ ] B — Trợ lý Học viên [ ] C — Làn mở
 Loại: [ ] Tối ưu tính năng có sẵn [x] Tính năng mới
 
@@ -37,7 +39,7 @@ Workflow mục tiêu:
 
 #### Khảo sát pain và lựa chọn định dạng
 
-Nguồn tổng hợp: [`Phản hồi khảo sát.png`](Phản%20hồi%20khảo%20sát.png) và [`phản hồi khảo sát p2.png`](phản%20hồi%20khảo%20sát%20p2.png).
+Nguồn tổng hợp: [`phản hồi form khảo sát.png`](ph%E1%BA%A3n%20h%E1%BB%93i%20form%20kh%E1%BA%A3o%20s%C3%A1t.png).
 
 | Tín hiệu                                                   |       Kết quả | Điều được phép kết luận                                 |
 | ---------------------------------------------------------- | ------------: | ------------------------------------------------------- |
@@ -230,9 +232,7 @@ Kế hoạch run tiếp theo:
 | Eval/prompt      | Nguyễn Quang Tường | `eval/golden-set-v1.md`, run log, failure analysis |
 | Backend/pipeline | Nguyễn Đình Bình   | `codebase/backend/src/`, contract/validator        |
 | Web/demo         | Phạm Đình Minh     | `codebase/frontend/`, demo flow và dry run         |
-| Validation       | Phạm Đức Trung     | `validation/feedback-log.md` tại CP5               |
-
-> Nhóm/Zone và mã học viên chưa xuất hiện trong artifact hiện tại; cần điền vào tiêu đề và README trước khi nộp.
+| Validation       | Phạm Đức Trung     | `validation/feedback-log.md` tại CP5               |
 
 ### Willing users và validation CP5
 

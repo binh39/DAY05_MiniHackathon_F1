@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>F1 · VLearn Video Catch-up · Pitch deck</title>
+  <style>
+    :root {
+      --ink: #171321;
+      --muted: #625c72;
+      --quiet: #858092;
+      --panel: rgba(255,255,255,.76);
+      --line: rgba(47,37,76,.14);
+      --purple: #7452dd;
+      --purple-2: #6744d5;
+      --mint: #119a80;
+      --yellow: #c88612;
+      --red: #d94b61;
+      --bg: #f8f7fc;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+    body { color: var(--ink); font-family: var(--sans); }
+    button, a { font: inherit; }
+    button { color: inherit; }
+
+    .deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background:
+        radial-gradient(circle at 76% 12%, rgba(110,79,231,.14), transparent 31%),
+        radial-gradient(circle at 12% 88%, rgba(17,154,128,.08), transparent 29%),
+        linear-gradient(135deg, #fbfaff 0%, #f6f3ff 58%, #f7fbfa 100%);
+    }
+
+    .deck::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .22;
+      pointer-events: none;
+      background-image: radial-gradient(rgba(69,54,105,.22) .7px, transparent .7px);
+      background-size: 18px 18px;
+      mask-image: linear-gradient(90deg, #000, transparent 55%);
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: clamp(15px, 2.2vh, 24px);
+      padding: clamp(30px, 5.2vh, 66px) clamp(34px, 6.2vw, 98px) clamp(26px, 4.3vh, 52px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(26px) scale(.992);
+      transition: opacity .3s ease, transform .38s cubic-bezier(.2,.8,.2,1), visibility .3s;
+      overflow: hidden;
+    }
+
+    .slide.active { opacity: 1; visibility: visible; transform: none; z-index: 2; }
+    .slide.exit-left { transform: translateX(-26px) scale(.992); }
+
+    .slide-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .kicker { display: flex; align-items: center; gap: 11px; color: var(--purple); font-weight: 800; font-size: clamp(11px, 1vw, 14px); letter-spacing: .13em; text-transform: uppercase; }
+    .kicker::before { content: ""; width: 26px; height: 2px; border-radius: 2px; background: currentColor; }
+    .time-pill { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: clamp(10px, .85vw, 13px); font-weight: 700; }
+    .time-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 12px var(--mint); }
+
+    .content { min-height: 0; display: grid; align-content: center; }
+    h1 { margin: 0; font-size: clamp(42px, 6.1vw, 92px); line-height: .98; letter-spacing: -.055em; max-width: 14ch; }
+    h2 { margin: 0; font-size: clamp(34px, 4.45vw, 68px); line-height: 1; letter-spacing: -.045em; }
+    h3 { margin: 0; font-size: clamp(16px, 1.45vw, 23px); letter-spacing: -.02em; }
+    p { margin: 0; }
+    .gradient-text { background: linear-gradient(110deg, #fff 12%, #c7b6ff 60%, #79e4cc); color: transparent; -webkit-background-clip: text; background-clip: text; }
+    .muted { color: var(--muted); }
+    .tiny { color: var(--quiet); font-size: clamp(9px, .75vw, 12px); line-height: 1.35; }
+    .label { color: var(--muted); font-size: clamp(10px, .8vw, 13px); text-transform: uppercase; letter-spacing: .11em; font-weight: 800; }
+    .eyeline { display: flex; align-items: center; gap: 10px; }
+    .eyeline span { width: 8px; height: 8px; border-radius: 2px; background: var(--mint); transform: rotate(45deg); }
+
+    .panel { border: 1px solid var(--line); background: var(--panel); border-radius: 20px; backdrop-filter: blur(10px); }
+    .source-footer { position: relative; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; min-height: 24px; }
+    .sources { max-width: 82%; color: var(--quiet); font-size: clamp(8px, .66vw, 11px); line-height: 1.45; }
+    .sources a { color: #aaa4c4; text-decoration: none; border-bottom: 1px solid rgba(170,164,196,.35); }
+    .sources a:hover { color: #fff; }
+    .page-no { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+    .page-no strong { color: var(--ink); font-size: 18px; }
+
+    /* Slide 1 */
+    .hero-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: clamp(25px, 4vw, 68px); align-items: center; }
+    .hero-copy { display: grid; gap: clamp(16px, 2.3vh, 26px); }
+    .persona-line { color: var(--muted); font-size: clamp(14px, 1.45vw, 23px); line-height: 1.45; max-width: 57ch; }
+    .persona-line strong { color: var(--mint); }
+    .jtbd { border-left: 3px solid var(--purple); padding-left: 18px; max-width: 60ch; font-family: var(--sans); font-weight: 540; color: #ddd9ec; font-size: clamp(14px, 1.3vw, 21px); line-height: 1.45; }
+    .pain-stack { display: grid; gap: 13px; }
+    .metric-card { position: relative; overflow: hidden; padding: clamp(16px, 2vw, 26px); }
+    .metric-card::after { content: ""; position: absolute; inset: auto -30px -55px auto; width: 120px; height: 120px; border: 25px solid rgba(157,124,255,.10); border-radius: 50%; }
+    .metric-card .number { display: block; font-size: clamp(34px, 4.25vw, 65px); line-height: .95; letter-spacing: -.06em; font-weight: 850; }
+    .metric-card .number em { color: var(--purple); font-style: normal; }
+    .metric-card p { position: relative; z-index: 1; margin-top: 11px; color: var(--muted); font-size: clamp(11px, 1vw, 15px); line-height: 1.4; max-width: 32ch; }
+    .micro-proof { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .micro-proof > div { padding: 14px 15px; border-top: 1px solid var(--line); }
+    .micro-proof strong { display: block; color: var(--mint); font-size: clamp(17px, 1.8vw, 27px); }
+    .micro-proof span { color: var(--quiet); font-size: clamp(8px, .72vw, 11px); }
+
+    /* Slide 2 */
+    .decision-wrap { display: grid; gap: clamp(18px, 2.5vh, 30px); }
+    .decision-title { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+    .decision-title p { max-width: 38ch; color: var(--muted); font-size: clamp(11px, 1vw, 15px); line-height: 1.45; text-align: right; }
+    .impact-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; table-layout: fixed; }
+    .impact-table th { padding: 0 14px 4px; color: var(--quiet); font-size: clamp(8px, .68vw, 11px); text-align: left; text-transform: uppercase; letter-spacing: .1em; }
+    .impact-table td { padding: clamp(12px, 1.55vh, 17px) 14px; background: rgba(255,255,255,.05); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); vertical-align: middle; font-size: clamp(10px, .89vw, 14px); line-height: 1.35; }
+    .impact-table td:first-child { border-left: 1px solid var(--line); border-radius: 14px 0 0 14px; }
+    .impact-table td:last-child { border-right: 1px solid var(--line); border-radius: 0 14px 14px 0; }
+    .impact-table tr.selected td { background: linear-gradient(90deg, rgba(110,79,231,.22), rgba(105,227,198,.06)); border-color: rgba(157,124,255,.45); }
+    .candidate { display: flex; gap: 11px; align-items: center; font-weight: 800; }
+    .candidate b { display: grid; place-items: center; flex: 0 0 auto; width: 27px; height: 27px; border-radius: 9px; background: rgba(255,255,255,.08); color: var(--muted); font-size: 11px; }
+    .selected .candidate b { color: #fff; background: var(--purple-2); box-shadow: 0 8px 20px rgba(110,79,231,.35); }
+    .status { display: inline-flex; padding: 5px 8px; border-radius: 7px; font-size: clamp(8px, .67vw, 10px); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .status.choose { color: #0b3b31; background: var(--mint); }
+    .status.backup { color: #5c4300; background: var(--yellow); }
+    .status.drop { color: #8f293a; background: #ffdce2; }
+    .rejected { display: flex; gap: 12px; align-items: center; padding: 12px 16px; color: var(--muted); font-size: clamp(10px, .85vw, 13px); }
+    .rejected strong { color: #ddd8ec; }
+    .rejected .cross { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: var(--red); background: rgba(255,125,142,.10); font-weight: 900; }
+
+    /* Slide 3 */
+    .demo-layout { display: grid; grid-template-columns: 1.12fr .88fr; gap: clamp(23px, 4vw, 62px); align-items: center; }
+    .solution-copy { display: grid; gap: clamp(17px, 2.2vh, 26px); }
+    .slice { color: #dedbea; font-family: var(--sans); font-weight: 520; font-size: clamp(15px, 1.5vw, 23px); line-height: 1.48; max-width: 54ch; }
+    .flow { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
+    .flow-step { position: relative; min-height: 91px; padding: 14px 12px; border: 1px solid var(--line); background: rgba(255,255,255,.045); border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; }
+    .flow-step:not(:last-child)::after { content: "›"; position: absolute; z-index: 2; right: -9px; top: 35%; color: var(--purple); font-size: 22px; font-weight: 800; }
+    .flow-step small { color: var(--purple); font-weight: 850; letter-spacing: .08em; }
+    .flow-step strong { font-size: clamp(9px, .8vw, 12px); line-height: 1.35; }
+    .cost-note { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-radius: 13px; background: rgba(255,211,110,.08); border: 1px solid rgba(255,211,110,.22); color: #e5dcbd; font-size: clamp(10px, .88vw, 13px); line-height: 1.4; }
+    .cost-note b { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto; color: #271d06; background: var(--yellow); border-radius: 9px; }
+    .demo-console { padding: clamp(17px, 2vw, 26px); border-radius: 24px; background: linear-gradient(150deg, rgba(42,32,79,.9), rgba(19,17,30,.92)); border: 1px solid rgba(157,124,255,.3); box-shadow: 0 30px 80px rgba(0,0,0,.28); }
+    .demo-console-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
+    .window-dots { display: flex; gap: 6px; }
+    .window-dots i { width: 7px; height: 7px; border-radius: 50%; background: #5b566b; }
+    .window-dots i:first-child { background: var(--red); }
+    .window-dots i:nth-child(2) { background: var(--yellow); }
+    .window-dots i:nth-child(3) { background: var(--mint); }
+    .demo-console-head span { color: var(--quiet); font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .case { display: grid; grid-template-columns: 28px 1fr auto; gap: 11px; align-items: start; padding: clamp(15px, 2vh, 21px) 0; border-bottom: 1px solid var(--line); }
+    .case:last-of-type { border-bottom: 0; }
+    .case-no { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: #0b3b31; background: var(--mint); font-size: 11px; font-weight: 900; }
+    .case.hard .case-no { color: #691e2c; background: #ffdce2; }
+    .case h3 { font-size: clamp(13px, 1.12vw, 17px); }
+    .case p { margin-top: 5px; color: var(--muted); font-size: clamp(9px, .78vw, 12px); line-height: 1.45; }
+    .case-result { text-align: right; }
+    .case-result strong { display: block; color: var(--mint); font-size: clamp(16px, 1.65vw, 25px); }
+    .hard .case-result strong { color: var(--red); }
+    .case-result span { color: var(--quiet); font-size: 9px; }
+    .demo-button { width: 100%; margin-top: 13px; min-height: 48px; border: 0; border-radius: 13px; color: #fff; text-decoration: none; font-weight: 850; font-size: clamp(11px, .9vw, 14px); background: linear-gradient(135deg, #8569f0, #6546d8); box-shadow: 0 14px 30px rgba(110,79,231,.25); display: flex; align-items: center; justify-content: center; gap: 9px; }
+    .demo-button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+    /* Slide 4 */
+    .result-layout { display: grid; grid-template-columns: .78fr 1.22fr; gap: clamp(25px, 5vw, 78px); align-items: center; }
+    .score-wrap { display: grid; justify-items: center; gap: 18px; }
+    .donut { --pct: 85; width: clamp(180px, 22vw, 330px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--yellow) calc(var(--pct) * 1%), rgba(255,255,255,.08) 0); position: relative; }
+    .donut::after { content: ""; position: absolute; inset: 16px; border-radius: 50%; background: #0f0c19; border: 1px solid var(--line); }
+    .donut-copy { position: relative; z-index: 1; text-align: center; }
+    .donut-copy strong { display: block; font-size: clamp(50px, 6vw, 90px); line-height: .9; letter-spacing: -.07em; }
+    .donut-copy span { display: block; margin-top: 9px; color: var(--yellow); font-size: clamp(10px, .9vw, 14px); font-weight: 800; }
+    .bar-legend { width: min(330px,100%); display: flex; justify-content: space-between; color: var(--muted); font-size: clamp(9px, .78vw, 12px); }
+    .bar-legend strong { color: var(--ink); }
+    .result-copy { display: grid; gap: clamp(18px, 2.4vh, 29px); }
+    .verdict { display: inline-flex; width: fit-content; align-items: center; gap: 9px; color: #ffbdc7; font-weight: 900; font-size: clamp(11px, 1vw, 15px); letter-spacing: .08em; text-transform: uppercase; }
+    .verdict i { width: 10px; height: 10px; border-radius: 50%; background: var(--red); box-shadow: 0 0 20px rgba(255,125,142,.7); }
+    .failure-card { padding: clamp(17px, 2vw, 24px); display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+    .failure-number { min-width: 120px; padding-right: 18px; border-right: 1px solid var(--line); }
+    .failure-number strong { display: block; color: var(--red); font-size: clamp(32px, 3.7vw, 55px); letter-spacing: -.05em; }
+    .failure-number span { color: var(--quiet); font-size: 10px; }
+    .failure-card h3 { margin-bottom: 6px; }
+    .failure-card p { color: var(--muted); font-size: clamp(10px, .9vw, 13px); line-height: 1.45; }
+    .evidence-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .evidence-row > div { padding: 13px 14px; border-top: 1px solid var(--line); }
+    .evidence-row strong { display: block; font-size: clamp(16px, 1.6vw, 24px); color: #fff; }
+    .evidence-row span { color: var(--quiet); font-size: clamp(8px, .7vw, 10px); }
+
+    /* Slide 5 */
+    .voice-layout { display: grid; gap: clamp(18px, 2.6vh, 30px); }
+    .voice-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+    .honesty-badge { max-width: 40ch; display: flex; gap: 10px; padding: 11px 13px; border: 1px solid rgba(255,211,110,.23); background: rgba(255,211,110,.07); color: #d8cfb0; border-radius: 12px; font-size: clamp(9px, .76vw, 12px); line-height: 1.4; }
+    .honesty-badge strong { color: var(--yellow); white-space: nowrap; }
+    .quote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    blockquote { position: relative; margin: 0; min-height: 170px; padding: clamp(20px, 2.4vw, 32px); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+    blockquote::before { content: "“"; position: absolute; right: 20px; top: -22px; color: rgba(157,124,255,.16); font-family: var(--serif); font-size: 130px; line-height: 1; }
+    blockquote p { position: relative; z-index: 1; max-width: 29ch; font-family: var(--sans); font-weight: 650; font-size: clamp(18px, 1.8vw, 28px); line-height: 1.28; }
+    blockquote footer { position: relative; z-index: 1; margin-top: 18px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: clamp(9px, .77vw, 12px); }
+    .avatar-mini { width: 29px; height: 29px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg,#7359e4,#9a7cf1); font-size: 10px; font-weight: 900; }
+    .change-strip { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 0; align-items: stretch; border: 1px solid var(--line); border-radius: 15px; overflow: hidden; background: rgba(255,255,255,.035); }
+    .change-strip > * { padding: 14px 16px; border-right: 1px solid var(--line); }
+    .change-strip > *:last-child { border-right: 0; }
+    .change-strip h3 { display: flex; align-items: center; color: var(--mint); font-size: clamp(10px, .9vw, 14px); text-transform: uppercase; letter-spacing: .08em; }
+    .change-strip strong { display: block; margin-bottom: 4px; font-size: clamp(10px, .88vw, 13px); }
+    .change-strip span { color: var(--quiet); font-size: clamp(8px, .7vw, 10px); line-height: 1.35; }
+
+    /* Slide 6 */
+    .week-layout { display: grid; gap: clamp(19px, 2.6vh, 31px); }
+    .slide[data-title="Thêm một tuần"] .content { align-content: start; padding-top: 4px; }
+    .week-head { display: flex; align-items: end; justify-content: space-between; gap: 25px; }
+    .week-head h2 { font-size: clamp(34px, 3.75vw, 58px); }
+    .week-head p { color: var(--muted); max-width: 42ch; text-align: right; font-size: clamp(11px, .95vw, 14px); line-height: 1.45; }
+    .priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; }
+    .priority { position: relative; height: clamp(180px, 24vh, 216px); padding: clamp(18px, 2.1vw, 27px); overflow: hidden; display: flex; flex-direction: column; }
+    .priority::after { content: attr(data-no); position: absolute; right: -3px; bottom: -30px; color: rgba(255,255,255,.035); font-size: 150px; line-height: 1; font-weight: 900; letter-spacing: -.08em; }
+    .priority .pno { color: var(--purple); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 900; }
+    .priority h3 { margin: 14px 0 9px; max-width: 18ch; font-size: clamp(17px, 1.55vw, 24px); }
+    .priority p { color: var(--muted); max-width: 34ch; font-size: clamp(10px, .84vw, 13px); line-height: 1.45; }
+    .priority .proof-link { position: relative; z-index: 1; margin-top: auto; padding-top: 16px; color: var(--mint); font-size: clamp(9px, .75vw, 11px); font-weight: 800; }
+    .lesson { display: flex; align-items: center; gap: 15px; padding: 15px 18px; border-radius: 14px; background: linear-gradient(90deg, rgba(110,79,231,.19), rgba(105,227,198,.08)); border: 1px solid rgba(157,124,255,.28); }
+    .lesson b { color: var(--mint); white-space: nowrap; font-size: clamp(10px, .8vw, 12px); text-transform: uppercase; letter-spacing: .09em; }
+    .lesson p { color: #e4e0ed; font-family: var(--sans); font-weight: 560; font-size: clamp(14px, 1.25vw, 19px); }
+
+    /* Light mode surface tuning */
+    .gradient-text {
+      background: linear-gradient(110deg, #171321 10%, #6845d4 62%, #0e9b80);
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    .panel { box-shadow: 0 18px 50px rgba(55,39,97,.07); }
+    .time-pill { background: rgba(255,255,255,.66); box-shadow: 0 8px 24px rgba(55,39,97,.05); }
+    .sources a { color: #665a82; border-bottom-color: rgba(102,90,130,.3); }
+    .sources a:hover { color: var(--purple-2); }
+    .page-no strong { color: var(--ink); }
+    .persona-line strong { color: #087c68; }
+    .jtbd, .slice { color: #393245; }
+    .metric-card::after { border-color: rgba(116,82,221,.09); }
+    .metric-card .number em { color: var(--purple-2); }
+    .micro-proof strong { color: #087c68; }
+    .impact-table td { background: rgba(255,255,255,.72); box-shadow: 0 10px 28px rgba(55,39,97,.035); }
+    .impact-table tr.selected td { background: linear-gradient(90deg, rgba(116,82,221,.13), rgba(17,154,128,.07)); border-color: rgba(116,82,221,.36); }
+    .candidate b { background: #eeeaf7; color: #6f687b; }
+    .selected .candidate b { color: #fff; }
+    .rejected strong { color: #383142; }
+    .flow-step { background: rgba(255,255,255,.68); box-shadow: 0 10px 28px rgba(55,39,97,.035); }
+    .cost-note { background: #fff8e8; border-color: rgba(200,134,18,.26); color: #665023; }
+    .cost-note b { color: #fff; background: #d6971f; }
+    .demo-console {
+      background: linear-gradient(150deg, rgba(255,255,255,.96), rgba(243,239,255,.96));
+      border-color: rgba(116,82,221,.28);
+      box-shadow: 0 28px 70px rgba(72,51,130,.13);
+    }
+    .demo-console-head span { color: #777087; }
+    .case-result strong { color: #07836d; }
+    .case h3 { color: #211a2f; }
+    .case p { color: #625a71; }
+    .case.hard .case-result strong { color: var(--red); }
+    .donut { background: conic-gradient(#f0b53f calc(var(--pct) * 1%), rgba(55,45,76,.1) 0); box-shadow: 0 24px 60px rgba(72,51,130,.1); }
+    .donut::after { background: #fbfaff; border-color: rgba(47,37,76,.12); }
+    .donut-copy span { color: #9a6500; }
+    .verdict { color: #ba3049; }
+    .failure-card { background: rgba(255,255,255,.8); }
+    .failure-number strong { color: #d54059; }
+    .evidence-row strong { color: var(--ink); }
+    blockquote { background: rgba(255,255,255,.78); }
+    blockquote::before { color: rgba(116,82,221,.1); }
+    blockquote p { color: #2b2336; }
+    .avatar-mini { color: #fff; }
+    .honesty-badge { background: #fff9ea; border-color: rgba(200,134,18,.25); color: #685328; }
+    .honesty-badge strong { color: #a96d00; }
+    .change-strip { background: rgba(255,255,255,.66); box-shadow: 0 14px 36px rgba(55,39,97,.04); }
+    .priority { background: rgba(255,255,255,.75); }
+    .priority::after { color: rgba(74,57,109,.045); }
+    .priority .proof-link, .change-strip h3, .lesson b { color: #087c68; }
+    .lesson { background: linear-gradient(90deg, rgba(116,82,221,.11), rgba(17,154,128,.075)); border-color: rgba(116,82,221,.24); }
+    .lesson p { color: #393245; }
+
+    /* Controls and notes */
+    .controls { position: fixed; z-index: 20; right: 18px; bottom: 16px; display: flex; gap: 7px; opacity: .28; transition: opacity .2s; }
+    .controls:hover, .controls:focus-within { opacity: 1; }
+    .controls button { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.84); box-shadow: 0 8px 24px rgba(55,39,97,.08); cursor: pointer; }
+    .controls button:hover { background: #eee9ff; }
+    .progress { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.05); }
+    .progress span { display: block; width: 16.666%; height: 100%; background: linear-gradient(90deg,var(--purple),var(--mint)); transition: width .3s ease; }
+    .notes { display: none; position: fixed; z-index: 30; right: 18px; top: 18px; width: min(430px, calc(100vw - 36px)); max-height: calc(100vh - 80px); overflow: auto; padding: 18px; border: 1px solid rgba(116,82,221,.28); border-radius: 15px; background: rgba(255,255,255,.97); box-shadow: 0 30px 80px rgba(55,39,97,.22); color: #3a3345; font-size: 13px; line-height: 1.55; }
+    .notes.show { display: block; }
+    .notes strong { color: var(--mint); }
+    .notes kbd { padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: #eee9ff; }
+    .timer { position: fixed; z-index: 25; top: 17px; left: 50%; transform: translateX(-50%); display: none; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(55,39,97,.12); color: var(--mint); font: 800 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .timer.show { display: block; }
+
+    @media (max-width: 900px), (max-aspect-ratio: 5/4) {
+      .slide { padding: 25px 26px 30px; overflow-y: auto; }
+      .hero-grid, .demo-layout, .result-layout { grid-template-columns: 1fr; }
+      .pain-stack { grid-template-columns: 1fr 1fr; }
+      .metric-card { grid-column: 1 / -1; }
+      .decision-title, .voice-head, .week-head { align-items: flex-start; flex-direction: column; }
+      .decision-title p, .week-head p { text-align: left; }
+      .impact-table th:nth-child(3), .impact-table td:nth-child(3) { display: none; }
+      .quote-grid, .priority-grid { grid-template-columns: 1fr; }
+      .change-strip { grid-template-columns: 1fr 1fr; }
+      .change-strip > * { border-bottom: 1px solid var(--line); }
+      .source-footer { padding-bottom: 4px; }
+    }
+
+    @media print {
+      html, body { height: auto; overflow: visible; background: #f8f7fc; }
+      .deck { height: auto; }
+      .slide { position: relative; width: 13.333in; height: 7.5in; page-break-after: always; opacity: 1; visibility: visible; transform: none; }
+      .controls, .progress, .timer, .notes { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="Pitch deck 6 slide">
+    <section class="slide active" data-title="User & Job" data-seconds="45">
+      <header class="slide-head">
+        <div class="kicker">01 · User & Job</div>
+        <div class="time-pill"><i></i> 45 giây</div>
+      </header>
+      <div class="content hero-grid">
+        <div class="hero-copy">
+          <div class="eyeline label"><span></span> Job executor</div>
+          <h1>Ôn lại bài, <span class="gradient-text">không đọc lại cả bài.</span></h1>
+          <p class="persona-line"><strong>Học viên vừa kết thúc một buổi học</strong>, có PDF slide và cần ôn trước khi làm bài, quiz hoặc học tiếp.</p>
+          <p class="jtbd">“Ôn lại mạch kiến thức chính của một buổi đã học và xác định phần nào cần xem kỹ trong tài liệu gốc.”</p>
+        </div>
+        <aside class="pain-stack">
+          <div class="metric-card panel">
+            <span class="label">Pain quan sát được</span>
+            <strong class="number"><em>141</em>/1.261</strong>
+            <p>lượt hỏi có nhu cầu “tóm tắt / tổng hợp” trong chatlog VLearn.</p>
+          </div>
+          <div class="micro-proof">
+            <div><strong>49/141</strong><span>bị từ chối rõ</span></div>
+            <div><strong>582/1.261</strong><span>không có citation</span></div>
+          </div>
+        </aside>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn: <a href="./brainstorm%201%202.md">brainstorm 1 2.md · §1.1–1.4</a> · <a href="./evidence/mining-log.md">evidence/mining-log.md</a>. Mẫu: 1.261 lượt / 369 học viên ẩn danh, 22–29/07/2026.</p>
+        <span class="page-no"><strong>01</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (45")</strong><br>Đây không phải mọi học viên. Job executor là người vừa học xong một buổi, có PDF và cần ôn để làm việc tiếp theo. Job tồn tại kể cả bỏ AI. Trong 1.261 lượt hội thoại, 141 lượt yêu cầu tóm tắt hoặc tổng hợp; 49 lượt trong số đó bị từ chối rõ. Vấn đề của chúng tôi là bắt lại mạch bài và vẫn kiểm được nguồn.</aside>
+    </section>
+
+    <section class="slide" data-title="Vì sao chọn" data-seconds="45">
+      <header class="slide-head">
+        <div class="kicker">02 · Vì sao chọn tính năng này</div>
+        <div class="time-pill"><i></i> 45 giây</div>
+      </header>
+      <div class="content decision-wrap">
+        <div class="decision-title">
+          <h2>Không bắt đầu từ <span class="gradient-text">một ý tưởng duy nhất.</span></h2>
+          <p>Chọn theo bằng chứng pain × khả năng giải đúng job × khả thi trong một ngày.</p>
+        </div>
+        <table class="impact-table" aria-label="Bảng impact ba ứng viên">
+          <colgroup><col style="width:25%"><col style="width:23%"><col style="width:28%"><col style="width:24%"></colgroup>
+          <thead><tr><th>Ứng viên</th><th>Impact đã thấy</th><th>Trade-off</th><th>Quyết định</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="candidate"><b>A1</b>Context Rescue</span></td>
+              <td><strong>1.252/1.261</strong> lượt có selected context</td>
+              <td>Pain mạnh, nhưng là tối ưu tutor hiện có</td>
+              <td><span class="status drop">Loại lát cắt</span></td>
+            </tr>
+            <tr>
+              <td><span class="candidate"><b>A2</b>Catch-up Map dạng text</span></td>
+              <td><strong>141</strong> lượt tổng hợp · <strong>49</strong> refusal</td>
+              <td>Sát evidence nhất, scan nhanh, build rẻ</td>
+              <td><span class="status backup">Dự phòng</span></td>
+            </tr>
+            <tr class="selected">
+              <td><span class="candidate"><b>A3</b>Video ôn tập có nguồn</span></td>
+              <td>Cùng cụm <strong>141</strong> lượt; preference là giả thuyết</td>
+              <td>Khôi phục lời diễn giải; khó scan hơn text</td>
+              <td><span class="status choose">Chọn có điều kiện</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rejected panel"><span class="cross">×</span><p><strong>A4 · Teach-back/self-check:</strong> chưa có bằng chứng pain trực tiếp; là bước sau, không giảm công sức ôn ban đầu.</p></div>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn quyết định và con số: <a href="./brainstorm%201%202.md">brainstorm 1 2.md · §1.5</a>. Không tự gán tần suất/ROI vì chưa có số đo.</p>
+        <span class="page-no"><strong>02</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (45")</strong><br>Chúng tôi cân bốn hướng. Context Rescue có tần suất cao nhưng là tối ưu tutor cũ. Catch-up Map bằng text sát bằng chứng nhất nên giữ làm fallback. Video được chọn có điều kiện vì vừa diễn giải lại mạch bài vừa dễ kiểm chứng trong demo; nếu user chủ yếu cần scan và search, chúng tôi quay về text thay vì cố bảo vệ video.</aside>
+    </section>
+
+    <section class="slide" data-title="Giải pháp & demo" data-seconds="120">
+      <header class="slide-head">
+        <div class="kicker">03 · Giải pháp & demo live</div>
+        <div class="time-pill"><i></i> 2 phút</div>
+      </header>
+      <div class="content demo-layout">
+        <div class="solution-copy">
+          <div class="eyeline label"><span></span> Lát cắt một câu</div>
+          <p class="slice">Một học viên đưa vào <strong>1 PDF</strong>; hệ thống chọn ý quan trọng có căn cứ, cho duyệt outline, rồi tạo video tiếng Việt dưới <strong>10 phút</strong> có chapter và link về trang nguồn.</p>
+          <div class="flow" aria-label="Luồng sản phẩm">
+            <div class="flow-step"><small>01</small><strong>Upload PDF<br>≤80 trang</strong></div>
+            <div class="flow-step"><small>02</small><strong>AI tạo outline<br>+ source trace</strong></div>
+            <div class="flow-step"><small>03</small><strong>Người học<br>duyệt / sửa</strong></div>
+            <div class="flow-step"><small>04</small><strong>Video + chapter<br>+ trang gốc</strong></div>
+          </div>
+          <div class="cost-note"><b>!</b><p><strong>Conditional automation:</strong> video trôi chảy nhưng sai khiến người học học sai; duyệt outline rẻ hơn sửa hiểu sai.</p></div>
+        </div>
+        <aside class="demo-console">
+          <div class="demo-console-head"><div class="window-dots"><i></i><i></i><i></i></div><span>LIVE DEMO · 02 CASES</span></div>
+          <div class="case">
+            <span class="case-no">1</span>
+            <div><h3>Case chuẩn · PDF 45 trang</h3><p>Upload → coverage → sửa outline → approve → xem chapter → mở source.</p></div>
+            <div class="case-result"><strong>75,82s</strong><span>MP4 contract 1–3'</span></div>
+          </div>
+          <div class="case hard">
+            <span class="case-no">2</span>
+            <div><h3>Chỗ khó · claim thiếu nguồn</h3><p>Validator chặn chapter, báo “chưa có nguồn”, repair hoặc bỏ ý; không đánh dấu COMPLETED giả.</p></div>
+            <div class="case-result"><strong>BLOCK</strong><span>G09 · PASS</span></div>
+          </div>
+          <a class="demo-button" href="http://localhost:5173/app/create" target="_blank" rel="noreferrer">Mở live prototype <span aria-hidden="true">↗</span></a>
+        </aside>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn: <a href="./spec.md">spec.md · §4–§6</a> · <a href="./codebase/backend/eval/duration-contract-1-3-e2e-2026-07-30.md">duration-contract E2E</a> · <a href="./eval/run-01-2026-07-30.md">Run 01 · G09</a>.</p>
+        <span class="page-no"><strong>03</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (2')</strong><br>20 giây nói lát cắt và cost-of-error. 55 giây case chuẩn: upload PDF 45 trang, chọn 1–3 phút, mở outline, sửa một chapter rồi duyệt, vào result và bấm source. 35 giây case khó: dùng case claim thiếu source; chỉ ra hệ thống chặn thay vì tạo video nghe hay nhưng sai. 10 giây kết: đây là conditional automation, không phải nút “AI làm hết”. Nhấn <kbd>D</kbd> để mở demo.</aside>
+    </section>
+
+    <section class="slide" data-title="Kết quả đo" data-seconds="45">
+      <header class="slide-head">
+        <div class="kicker">04 · Kết quả đo</div>
+        <div class="time-pill"><i></i> 45 giây</div>
+      </header>
+      <div class="content result-layout">
+        <div class="score-wrap">
+          <div class="donut" aria-label="85 phần trăm qua golden set">
+            <div class="donut-copy"><strong>85%</strong><span>17 / 20 case PASS</span></div>
+          </div>
+          <div class="bar-legend"><span>Baseline <strong>85%</strong></span><span>Quality bar <strong>≥90%</strong></span></div>
+        </div>
+        <div class="result-copy">
+          <div class="verdict"><i></i> Chưa đạt · thiếu 5 điểm %</div>
+          <h2>Giữ nguyên bar.<br><span class="gradient-text">Giữ nguyên cả lỗi.</span></h2>
+          <div class="failure-card panel">
+            <div class="failure-number"><strong>−44,8%</strong><span>G15 · FAIL</span></div>
+            <div><h3>Estimator lệch voice thật</h3><p>Ước lượng 1.634 giây, WAV thật 902,56 giây. Timeline đã dùng audio thật, nhưng estimator chưa đạt ngưỡng sai số ≤20%.</p></div>
+          </div>
+          <div class="evidence-row">
+            <div><strong>2/20</strong><span>NOT RUN · G17–G18</span></div>
+            <div><strong>0</strong><span>claim thiếu/sai source trong output COMPLETED</span></div>
+            <div><strong>55/55</strong><span>technical tests PASS — không thay golden set</span></div>
+          </div>
+        </div>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn: <a href="./spec.md">spec.md · §7</a> · <a href="./eval/run-01-2026-07-30.md">eval/run-01-2026-07-30.md</a>. Quality bar chốt trước đo: ≥90%, mọi P0 được chạy, 0 lỗi source/scene FAILED ở output COMPLETED.</p>
+        <span class="page-no"><strong>04</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (45")</strong><br>Quality bar đã chốt là 90% và mọi P0 phải được chạy. Baseline đạt 17/20, tức 85%, nên kết luận thẳng là chưa đạt. Lỗi đáng kể nhất là estimator lệch audio thật 44,8%. Hai case hiếm encrypted PDF và prompt injection chưa chạy nên tính 0, không được “review code rồi gọi là pass”.</aside>
+    </section>
+
+    <section class="slide" data-title="User thật nói gì" data-seconds="45">
+      <header class="slide-head">
+        <div class="kicker">05 · User thật nói gì</div>
+        <div class="time-pill"><i></i> 45 giây</div>
+      </header>
+      <div class="content voice-layout">
+        <div class="voice-head">
+          <h2>Không chỉ nói <span class="gradient-text">“hay đấy”.</span></h2>
+          <div class="honesty-badge"><strong>TRẠNG THÁI</strong><span>2 quote hành vi thật từ chatlog; validation CP5 có tên thật chưa được log trong repo.</span></div>
+        </div>
+        <div class="quote-grid">
+          <blockquote class="panel">
+            <p>“Tổng họp thông tin của toàn bộ bài giảng hôm nay”</p>
+            <footer><span class="avatar-mini">HS</span><span><strong>T0404</strong> · Học viên VLearn ẩn danh<br>Tutor không thể tổng hợp · downvote</span></footer>
+          </blockquote>
+          <blockquote class="panel">
+            <p>“tóm tắt tất cả nội dung cần note lại đầy đủ”</p>
+            <footer><span class="avatar-mini">HS</span><span><strong>T0938</strong> · Học viên VLearn ẩn danh<br>Không truy cập được slide để tóm tắt · downvote</span></footer>
+          </blockquote>
+        </div>
+        <div class="change-strip">
+          <h3>Đã đổi gì →</h3>
+          <div><strong>Từ hỏi từng đoạn → toàn buổi</strong><span>Flow nhận 1 PDF và tái cấu trúc thành chapter.</span></div>
+          <div><strong>Từ “tóm tắt một cục” → duyệt outline</strong><span>User sửa mục tiêu, thứ tự, mức chi tiết trước render.</span></div>
+          <div><strong>Từ câu trả lời khó kiểm → source trace</strong><span>Mỗi chapter/claim quay về đúng trang gốc.</span></div>
+        </div>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn quote và kết quả tutor: <a href="./evidence/mining-log.md">evidence/mining-log.md · T0404, T0938</a>. Trạng thái validation: <a href="./spec.md">spec.md · §8–§9</a> (CP5 chưa thực hiện; persona rehearsal không được tính là bằng chứng).</p>
+        <span class="page-no"><strong>05</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (45")</strong><br>Hai câu này là hành vi thật trong chatlog, không phải lời khen chung chung. Chúng cho thấy user muốn tổng hợp cả buổi và muốn biết điều gì cần note. Từ đó chúng tôi đổi flow sang nhận cả PDF, thêm checkpoint duyệt outline và source trace. Nhưng phải nói rõ: CP5 phỏng vấn có tên thật chưa được log; nhóm không dùng ba persona mô phỏng trong spec như bằng chứng.</aside>
+    </section>
+
+    <section class="slide" data-title="Thêm một tuần" data-seconds="30">
+      <header class="slide-head">
+        <div class="kicker">06 · Nếu có thêm 1 tuần</div>
+        <div class="time-pill"><i></i> 30 giây</div>
+      </header>
+      <div class="content week-layout">
+        <div class="week-head">
+          <h2>Ba việc. <span class="gradient-text">Đều trỏ về lỗi chưa xử.</span></h2>
+          <p>Không thêm hiệu ứng trước khi evidence, safety và quality bar được đóng.</p>
+        </div>
+        <div class="priority-grid">
+          <article class="priority panel" data-no="1">
+            <span class="pno">P0 · QUALITY</span>
+            <h3>Hiệu chỉnh duration estimator</h3>
+            <p>Calibrate theo voice/narration kind, giữ final duration gate và rerun đủ 20 case.</p>
+            <span class="proof-link">Từ G15 · sai lệch −44,8%</span>
+          </article>
+          <article class="priority panel" data-no="2">
+            <span class="pno">P0 · SAFETY</span>
+            <h3>Chạy case hiếm thật</h3>
+            <p>Tạo fixture encrypted/corrupt PDF và prompt injection; không nâng PASS bằng review code.</p>
+            <span class="proof-link">Từ G17–G18 · 2/20 NOT RUN</span>
+          </article>
+          <article class="priority panel" data-no="3">
+            <span class="pno">P0 · VALIDATION</span>
+            <h3>Test với ≥5 người thật</h3>
+            <p>Log quote nguyên văn, hành vi xem/nhảy chapter/mở nguồn và so video với Catch-up Map text.</p>
+            <span class="proof-link">Từ CP5 · hiện chưa có feedback log</span>
+          </article>
+        </div>
+        <div class="lesson"><b>Bài học lớn nhất</b><p>Một failure được xử lý đúng đáng tin hơn ba happy path được trình bày đẹp.</p></div>
+      </div>
+      <footer class="source-footer">
+        <p class="sources">Nguồn ưu tiên: <a href="./eval/run-01-2026-07-30.md">Run 01 · failure analysis</a> · <a href="./spec.md">spec.md · §7–§8</a>. Mốc hiện tại: 85% so với quality bar ≥90%.</p>
+        <span class="page-no"><strong>06</strong> / 06</span>
+      </footer>
+      <aside class="notes"><strong>Lời nói gợi ý (30")</strong><br>Nếu có thêm một tuần, chúng tôi chỉ làm ba việc: sửa duration estimator đang lệch 44,8%; chạy thật hai case hiếm còn bỏ trống; và validation với ít nhất năm người thật, so video với fallback text. Bài học lớn nhất: một failure được xử lý đúng tạo niềm tin hơn ba happy path đẹp.</aside>
+    </section>
+  </main>
+
+  <div class="controls" aria-label="Điều khiển slide">
+    <button id="prev" aria-label="Slide trước">←</button>
+    <button id="notesToggle" aria-label="Bật tắt ghi chú">N</button>
+    <button id="next" aria-label="Slide sau">→</button>
+  </div>
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+  <div class="timer" id="timer">00:00 / 05:30</div>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const progressBar = document.getElementById('progressBar');
+    const timerEl = document.getElementById('timer');
+    let index = Math.max(0, Math.min(slides.length - 1, Number(location.hash.slice(1) || 1) - 1));
+    let timerId = null;
+    let startedAt = 0;
+
+    function show(nextIndex) {
+      const oldIndex = index;
+      index = (nextIndex + slides.length) % slides.length;
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+        slide.classList.toggle('exit-left', i < index);
+        const notes = slide.querySelector('.notes');
+        if (i !== index) notes?.classList.remove('show');
+      });
+      progressBar.style.width = `${((index + 1) / slides.length) * 100}%`;
+      location.hash = String(index + 1);
+      document.title = `${index + 1}/6 · ${slides[index].dataset.title} · F1 Pitch`;
+      if (oldIndex !== index) slides[index].focus?.({ preventScroll: true });
+    }
+
+    function toggleNotes() { slides[index].querySelector('.notes')?.classList.toggle('show'); }
+    function openDemo() { window.open('http://localhost:5173/app/create', '_blank', 'noopener'); }
+    function formatTime(seconds) { return `${String(Math.floor(seconds / 60)).padStart(2,'0')}:${String(seconds % 60).padStart(2,'0')}`; }
+    function toggleTimer() {
+      if (timerId) {
+        clearInterval(timerId); timerId = null; startedAt = 0;
+        timerEl.classList.remove('show'); timerEl.textContent = '00:00 / 05:30';
+        return;
+      }
+      startedAt = Date.now(); timerEl.classList.add('show');
+      timerId = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        timerEl.textContent = `${formatTime(elapsed)} / 05:30`;
+        timerEl.style.color = elapsed > 330 ? 'var(--red)' : elapsed > 300 ? 'var(--yellow)' : 'var(--mint)';
+      }, 250);
+    }
+
+    document.getElementById('prev').addEventListener('click', () => show(index - 1));
+    document.getElementById('next').addEventListener('click', () => show(index + 1));
+    document.getElementById('notesToggle').addEventListener('click', toggleNotes);
+    addEventListener('hashchange', () => show(Number(location.hash.slice(1) || 1) - 1));
+    addEventListener('keydown', (event) => {
+      if (['ArrowRight','PageDown',' '].includes(event.key)) { event.preventDefault(); show(index + 1); }
+      if (['ArrowLeft','PageUp'].includes(event.key)) { event.preventDefault(); show(index - 1); }
+      if (event.key.toLowerCase() === 'n') toggleNotes();
+      if (event.key.toLowerCase() === 'd') openDemo();
+      if (event.key.toLowerCase() === 't') toggleTimer();
+      if (event.key === 'Home') show(0);
+      if (event.key === 'End') show(slides.length - 1);
+    });
+    show(index);
+  </script>
+</body>
+</html>
