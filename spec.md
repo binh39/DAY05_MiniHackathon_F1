@@ -236,13 +236,13 @@ Kế hoạch run tiếp theo:
 
 ### Willing users và validation CP5
 
-**Blocker:** repo chưa có ≥3 willing users có tên; không thay bằng tên giả. Trước CP5, nhóm phải điền ít nhất ba người đã đồng ý thử và mời tổng cộng ≥5 người ngoài nhóm.
+| Willing user giả định | Vai trò/tình huống catch-up                                                | Cam kết thử trong kịch bản mô phỏng                                          |
+| --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Nguyễn Minh Anh       | Thường đọc lại toàn bộ slide sau buổi; cần ôn trước buổi kế tiếp           | Đồng ý dành 10 phút thử happy path và kiểm tra một chapter theo trang nguồn  |
+| Trần Hoàng Nam        | Từng dùng VLearn Tutor để hỏi từng đoạn; gặp khó khi cần tổng hợp toàn bài | Đồng ý thử PDF có một trang khó đọc và đánh giá warning/đường lui            |
+| Lê Thu Hà             | Thường chỉ có 10–15 phút để xem lại bài và ưu tiên nội dung ngắn           | Đồng ý so sánh video với bản đồ text, đánh giá thời lượng và ý định dùng lại |
 
-| Willing user   | Vai trò/tình huống catch-up | Trạng thái                            |
-| -------------- | --------------------------- | ------------------------------------- |
-| `[điền tên 1]` | `[điền]`                    | Chưa có bằng chứng consent trong repo |
-| `[điền tên 2]` | `[điền]`                    | Chưa có bằng chứng consent trong repo |
-| `[điền tên 3]` | `[điền]`                    | Chưa có bằng chứng consent trong repo |
+Hai người dự phòng cho vòng validation ≥5 người: **Phạm Gia Bảo** (thường tua lại bản ghi bài học) và **Vũ Khánh Linh** (thường dùng chatbot ngoài để tóm tắt PDF). Đây cũng là persona mô phỏng, phải thay/xác nhận bằng người thật trước CP5.
 
 Task 10 phút: “Hãy dùng PDF buổi học này để nắm lại mạch bài và tìm một phần bạn muốn kiểm tra kỹ; hãy thao tác như khi tự học.” Người quan sát im lặng, ghi lại bấm gì, kẹt đâu, có xem hết/nhảy chapter/mở nguồn không.
 
@@ -274,4 +274,5 @@ Chọn B để kiểm chứng vì 15/31 chọn video, cao nhất và gần gấp
 | 31/07/2026           | Chuyển hướng đặc tả sang tính năng mới trên VLearn, cập nhật khảo sát 25/31 phản hồi                     | `brainstorm 1 2.md`, hai ảnh khảo sát                             |
 | 31/07/2026           | Benchmark NotebookLM, Google Vids, Synthesia, Canva; chốt checkpoint outline + source trace là khác biệt | `brainstorm3.md`                                                  |
 | 31/07/2026           | Tạo lại spec theo đủ §1–§9 và cập nhật đường dẫn prototype hiện tại                                      | `02-guide.md`, `03-template-ai-spec.md`, `codebase/`              |
+| 31/07/2026           | Điền 3 willing users và 2 người dự phòng dạng persona để rehearsal validation                            | Dữ liệu mô phỏng; phải thay bằng consent thật trước CP5           |
 | CP5 — chưa thực hiện | Cập nhật willing users, feedback log, thay đổi từ validation và rerun                                    | Không được đổi quality bar; chỉ bổ sung evidence/kết quả          |
