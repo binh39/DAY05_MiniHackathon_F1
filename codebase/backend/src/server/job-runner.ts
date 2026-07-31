@@ -463,7 +463,7 @@ export class JobRunner {
               event.type === "MODULE_COMPLETED" ? 98 : 2,
             )
           : Math.max(2, moduleProgress(states));
-        await this.store.update(jobId, {
+        const updated = await this.store.update(jobId, {
           modules: states,
           stage:
             event.type === "MODULE_FAILED"

@@ -5,7 +5,7 @@
 - Project: `project-5d300c02-d165-4037-b6f`
 - Region: `asia-southeast1`
 - Artifact Registry: `ai-lecture-video`
-- Image: `asia-southeast1-docker.pkg.dev/project-5d300c02-d165-4037-b6f/ai-lecture-video/backend:c2230b143e76-manual-20260731-r3`
+- Image: `asia-southeast1-docker.pkg.dev/project-5d300c02-d165-4037-b6f/ai-lecture-video/backend:9c35a48-hotfix-20260731-r4`
 - Cloud Run API: `lecture-api`
 - API URL: `https://lecture-api-wadxcpoeza-as.a.run.app`
 - Cloud Run Job: `lecture-worker`
@@ -61,3 +61,7 @@ deleted afterward.
 Revision `lecture-api-00003-s5v` fixes stale local run-directory caches. API
 artifact readers now verify their required files and re-sync from Cloud Storage
 when a worker has produced newer artifacts, including `02_lecture_plan.json`.
+
+Revision `lecture-api-00004-mhk` deploys merge `9c35a48` plus the TypeScript
+merge fixes. Backend tests pass 73/73 and the public Firebase registration,
+document, protected PDF and summary smoke flow passes.

@@ -12,6 +12,11 @@ import {
   narrationWordBudget,
   spokenWordsPerMinute,
 } from "../src/core/speech-duration.js";
+import {
+  chapterWordBudget,
+  estimateSpokenDurationSeconds,
+  tolerantChapterWordBudget,
+} from "../src/modules/module3_script_generator/duration-budget.js";
 import { validateScript } from "../src/modules/module3_script_generator/grounding-validator.js";
 import {
   createScriptCacheKey,
@@ -93,6 +98,7 @@ test("duration validation tolerates a small model overrun", () => {
       ],
     ]),
     { issues: [] },
+    spokenWordsPerMinute("vi"),
   );
 
   assert.equal(
@@ -103,7 +109,7 @@ test("duration validation tolerates a small model overrun", () => {
     ),
     286,
   );
-  assert.equal(script.estimated_duration_seconds, 102);
+  assert.equal(script.estimated_duration_seconds, 81.714);
   assert.doesNotThrow(() =>
     validateScript(script, document, tolerantPlan),
   );

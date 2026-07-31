@@ -451,7 +451,7 @@ vì milestone trong `Tasks.md` yêu cầu hoàn tất cả phase và golden set.
 
 ### S5. Deploy Cloud Run API Service — P0
 
-- [x] Build image và push Artifact Registry bằng tag bất biến `c2230b143e76-manual-20260731-r3`, không dùng `latest`.
+- [x] Build image và push Artifact Registry bằng tag bất biến `9c35a48-hotfix-20260731-r4`, không dùng `latest`.
 - [x] Deploy API service `lecture-api` tại `asia-southeast1`.
 - [x] API chỉ xử lý request ngắn: auth, upload, CRUD, status, retry và tạo execution.
 - [x] Cấu hình API 1 CPU và 1 GiB RAM.
